@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Log Viewer · AES-GCM · Compare</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --container-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #ccc;
+            --shadow-color: rgba(0,0,0,0.1);
+            --code-bg: #f8f8f8;
+            --meta-bg: #e3f2fd;
+            --tab-bg: #f0f0f0;
+            --tab-active-bg: #ddd;
+            --severity-info-bg: #e8f5e9;
+            --severity-info-color: #388e3c;
+            --severity-error-bg: #ffebee;
+            --severity-error-color: #d32f2f;
+            --severity-warn-bg: #fff8e1;
+            --severity-warn-color: #ffa000;
+            --accent: #4CAF50;
+            --accent-hover: #43a047;
+            --focus-ring: rgba(76, 175, 80, 0.25);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --container-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --border-color: #555;
+            --shadow-color: rgba(0,0,0,0.3);
+            --code-bg: #1e1e1e;
+            --meta-bg: #3a3a3a;
+            --tab-bg: #404040;
+            --tab-active-bg: #555;
+            --severity-info-bg: #1b4332;
+            --severity-info-color: #52c788;
+            --severity-error-bg: #5c1e1e;
+            --severity-error-color: #ff6b6b;
+            --severity-warn-bg: #5c4a1e;
+            --severity-warn-color: #ffd93d;
+            --focus-ring: rgba(82, 199, 136, 0.3);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .container {
+            max-width: 95%;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .theme-toggle {
+            background: var(--container-bg);
+            border: 2px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: vertical;
+            background-color: var(--container-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        button:not(.tab-btn):not(.copy-btn):not(.theme-toggle):not(.nav-item):not(.gcm-btn-primary):not(.gcm-btn-secondary) {
+            font-family: inherit;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 40px;
+            padding: 0 18px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 300;
+            line-height: 1.2;
+            cursor: pointer;
+            margin: 0;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px var(--shadow-color);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px var(--shadow-color);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, #66bb6a 0%, #43a047 100%);
+            color: #fff;
+            border-color: #2e7d32;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(180deg, #72c276 0%, #4caf50 100%);
+        }
+
+        .btn-secondary {
+            background: var(--tab-active-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--tab-bg);
+            border-color: var(--severity-info-color);
+        }
+
+        .btn-info {
+            background: linear-gradient(180deg, #42a5f5 0%, #1e88e5 100%);
+            color: #fff;
+            border-color: #1565c0;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: linear-gradient(180deg, #64b5f6 0%, #2196f3 100%);
+        }
+
+        .log-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .split-controls .log-actions {
+            justify-content: center;
+            margin-bottom: 0;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .log-entry {
+            background-color: var(--container-bg);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .timestamp {
+            color: #666;
+        }
+        .severity {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .severity-INFO {
+            background-color: var(--severity-info-bg);
+            color: var(--severity-info-color);
+        }
+        .severity-ERROR {
+            background-color: var(--severity-error-bg);
+            color: var(--severity-error-color);
+        }
+        .severity-WARN {
+            background-color: var(--severity-warn-bg);
+            color: var(--severity-warn-color);
+        }
+        .log-message {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: var(--code-bg);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border: 1px solid var(--border-color);
+        }
+        .json-key { color: #2e7d32; font-weight: bold; }
+        .json-value, .json-string, .json-boolean { color: var(--text-color); }
+        .json-null { color: var(--severity-error-color); font-weight: bold; }
+        
+        [data-theme="dark"] .json-key { color: #81c784; font-weight: bold; }
+        .tab-btn {
+            background-color: var(--tab-bg);
+            border: none;
+            padding: 10px 15px;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            background-color: var(--tab-active-bg);
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+            background-color: var(--code-bg);
+            padding: 15px;
+            border-radius: 0 4px 4px 4px;
+            border: 1px solid var(--border-color);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .meta-info {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .meta-item {
+            margin-right: 15px;
+            margin-bottom: 5px;
+            background-color: var(--meta-bg);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 14px;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .copy-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        /* Panel system styles */
+        .main-view {
+            display: block;
+        }
+
+        .split-view {
+            display: none;
+        }
+
+        .split-controls {
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .split-mode-label {
+            color: var(--text-color);
+            font-size: 14px;
+            margin-left: 4px;
+            padding-left: 12px;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .split-panels {
+            display: grid;
+            gap: 15px;
+            grid-template-columns: 1fr;
+            width: 100%;
+        }
+
+        .split-panels.panels-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .split-panels.panels-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .panel {
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 70vh;
+        }
+
+        .panel-header {
+            background: var(--tab-active-bg);
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-name {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 100px;
+        }
+
+        .panel-controls {
+            margin: 15px;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .panel-textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: vertical;
+            background-color: var(--code-bg);
+            color: var(--text-color);
+            font-family: monospace;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: var(--bg-color);
+        }
+
+        #logViewerApp .panel-controls .log-actions .btn {
+            min-height: 36px;
+            padding: 0 14px;
+            font-size: 13px;
+        }
+
+        .log-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .log-toolbar button.btn-secondary {
+            background-color: var(--tab-active-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .log-toolbar button.btn-secondary:hover {
+            background-color: var(--tab-bg);
+        }
+
+        .log-toolbar .log-toolbar-hint {
+            font-size: 13px;
+            opacity: 0.85;
+            margin-left: 4px;
+        }
+
+        .log-toolbar label.log-auto-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: normal;
+            cursor: pointer;
+            margin: 0 0 0 8px;
+        }
+
+        .log-toolbar label.log-auto-label input {
+            width: auto;
+            cursor: pointer;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            display: flex;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--text-color);
+            transition: background-color 0.3s ease;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .nav-item:last-child {
+            border-right: none;
+        }
+
+        .nav-item.active {
+            background-color: var(--tab-active-bg);
+            border-bottom: 3px solid #4CAF50;
+        }
+
+        .nav-item:hover:not(.active) {
+            background-color: var(--tab-bg);
+        }
+
+        /* Compare View Styles */
+        .compare-view {
+            display: none;
+        }
+
+        .compare-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .compare-row {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .compare-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .compare-pane h3,
+        .compare-pane-title {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 16px;
+            transition: color 0.25s ease;
+        }
+
+        .compare-pane-title-left {
+            color: var(--severity-error-color);
+        }
+
+        .compare-pane-title-right {
+            color: var(--severity-info-color);
+        }
+
+        .compare-pane.is-equal {
+            border-color: var(--severity-info-color);
+            box-shadow: 0 0 0 2px var(--severity-info-bg), 0 2px 8px var(--shadow-color);
+        }
+
+        .compare-pane.is-equal h3 {
+            color: var(--severity-info-color) !important;
+        }
+
+        .compare-textarea.is-equal {
+            border-color: var(--severity-info-color) !important;
+            background-color: var(--severity-info-bg) !important;
+            box-shadow: inset 0 0 0 1px rgba(76, 175, 80, 0.15);
+        }
+
+        .compare-equal-banner {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            background: var(--severity-info-bg);
+            color: var(--severity-info-color);
+            border: 1px solid var(--severity-info-color);
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .compare-equal-banner.visible {
+            display: flex;
+        }
+
+        .compare-results.is-equal .diff-pane {
+            border-color: var(--severity-info-color);
+            box-shadow: 0 0 0 2px var(--severity-info-bg);
+        }
+
+        .compare-textarea {
+            width: 100%;
+            height: 400px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: vertical;
+            background-color: var(--code-bg);
+            color: var(--text-color);
+            font-family: monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .compare-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 5px 0;
+        }
+
+        .compare-results {
+            display: none;
+            flex-direction: row;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .diff-pane {
+            flex: 1;
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 15px 0;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .diff-line {
+            padding: 0 15px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 22px;
+        }
+
+        .diff-equal {
+            color: var(--text-color);
+        }
+
+        .diff-removed {
+            background-color: rgba(255, 0, 0, 0.2);
+            color: #ff6b6b;
+        }
+
+        .diff-added {
+            background-color: rgba(0, 255, 0, 0.2);
+            color: #52c788;
+        }
+
+        body:not([data-theme="dark"]) .diff-removed {
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+
+        body:not([data-theme="dark"]) .diff-added {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+
+        /* AES-GCM tool (merged; scoped to #cryptoApp) */
+        #cryptoApp {
+            display: none;
+        }
+
+        #cryptoApp * {
+            box-sizing: border-box;
+        }
+
+        #cryptoApp .gcm-info-strip {
+            background: var(--meta-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            line-height: 1.5;
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+
+        #cryptoApp .gcm-info-strip code {
+            font-family: ui-monospace, Consolas, monospace;
+            font-size: 12px;
+            background: var(--code-bg);
+            padding: 1px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        #cryptoApp .gcm-layout {
+            display: grid;
+            grid-template-columns: minmax(260px, 320px) 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        @media (max-width: 820px) {
+            #cryptoApp .gcm-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #cryptoApp .gcm-card {
+            background-color: var(--container-bg);
+            border-radius: 8px;
+            padding: 18px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            border: 1px solid var(--border-color);
+        }
+
+        #cryptoApp .gcm-card h2 {
+            margin: 0 0 14px;
+            font-size: 15px;
+            font-weight: 700;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #cryptoApp label.gcm-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            margin-top: 12px;
+        }
+
+        #cryptoApp label.gcm-label:first-of-type {
+            margin-top: 0;
+        }
+
+        #cryptoApp .gcm-hint {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        #cryptoApp input[type="text"].gcm-input,
+        #cryptoApp textarea.gcm-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--code-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #cryptoApp textarea.gcm-textarea {
+            font-family: ui-monospace, Consolas, 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.45;
+            resize: vertical;
+            min-height: 160px;
+            height: auto;
+            margin-bottom: 0;
+        }
+
+        #cryptoApp textarea.gcm-textarea-tall {
+            min-height: 220px;
+        }
+
+        #cryptoApp input[type="text"].gcm-input:focus,
+        #cryptoApp textarea.gcm-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        #cryptoApp .gcm-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #cryptoApp .gcm-checkbox-row input {
+            width: auto;
+            cursor: pointer;
+        }
+
+        #cryptoApp .gcm-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+            align-items: center;
+        }
+
+        #cryptoApp .gcm-actions button {
+            margin: 0;
+        }
+
+        #cryptoApp button.gcm-btn-primary {
+            background-color: var(--accent);
+            border: none;
+            color: white;
+            padding: 10px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+        }
+
+        #cryptoApp button.gcm-btn-primary:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+        }
+
+        #cryptoApp button.gcm-btn-primary:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        #cryptoApp button.gcm-btn-primary:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        #cryptoApp button.gcm-btn-secondary {
+            background-color: var(--tab-active-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        #cryptoApp button.gcm-btn-secondary:hover:not(:disabled) {
+            background-color: var(--tab-bg);
+        }
+
+        #cryptoApp .gcm-status {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
+        #cryptoApp .gcm-status.visible {
+            display: block;
+        }
+
+        #cryptoApp .gcm-status.ok {
+            background: var(--severity-info-bg);
+            color: var(--severity-info-color);
+            border-color: transparent;
+        }
+
+        #cryptoApp .gcm-status.err {
+            background: var(--severity-error-bg);
+            color: var(--severity-error-color);
+            border-color: transparent;
+        }
+
+        #cryptoApp .gcm-status.warn {
+            background: var(--severity-warn-bg);
+            color: var(--severity-warn-color);
+            border-color: transparent;
+        }
+
+        #cryptoApp .gcm-output-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        #cryptoApp .gcm-output-head .gcm-label {
+            margin-top: 0;
+        }
+
+        #cryptoApp .gcm-subnav {
+            margin-bottom: 18px;
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1 id="appTitle">JSON Log Viewer</h1>
+                <p id="appSubtitle">วางข้อมูล log ในรูปแบบ JSON ด้านล่าง (แต่ละบรรทัดควรเป็นหนึ่ง JSON object)</p>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">☀️</span> Light Mode
+            </button>
+        </div>
+
+        <!-- Navigation Bar -->
+        <div class="navbar" role="tablist" aria-label="เลือกเครื่องมือ">
+            <div class="nav-item active" id="navLogViewer" role="tab" aria-selected="true" onclick="switchAppMode('logViewer')">📍 JSON Log Viewer</div>
+            <div class="nav-item" id="navCompare" role="tab" aria-selected="false" onclick="switchAppMode('compare')">⚖️ Compare Text/JSON</div>
+            <div class="nav-item" id="navCrypto" role="tab" aria-selected="false" onclick="switchAppMode('crypto')">🔐 AES-GCM</div>
+        </div>
+
+        <!-- Log Viewer App -->
+        <div id="logViewerApp">
+            <!-- Main View -->
+            <div id="mainView" class="main-view">
+            <textarea id="jsonInput" placeholder="วาง JSON log ที่นี่ (แต่ละบรรทัดเป็นหนึ่ง JSON object)"></textarea>
+
+            <!-- <div class="log-toolbar"> -->
+                <!-- <button type="button" onclick="escapeJsonInput('jsonInput')">Escape JSON</button> -->
+                <!-- <button type="button" class="btn-secondary" onclick="unescapeJsonInput('jsonInput')">Unescape JSON</button> -->
+                <!-- <button type="button" class="btn-secondary" onclick="autoEscapeUnescapeJsonInput('jsonInput')">Auto Escape/Unescape</button> -->
+                <!-- <label class="log-auto-label" title="แปลงอัตโนมัติเมื่อวางข้อความ และก่อนกดแสดงผล">
+                    <input type="checkbox" id="logAutoTransform" checked>
+                    Auto ก่อนแสดงผล / วาง
+                </label> -->
+                <!-- <span class="log-toolbar-hint">\\ → \\\\ · &quot; → \&quot; · ขึ้นบรรทัด → \n · แท็บ → \t · ฯลฯ</span> -->
+            <!-- </div> -->
+            
+            <div class="log-actions">
+                <button type="button" class="btn btn-primary" onclick="parseJSON()">แสดงผล</button>
+                <button type="button" class="btn btn-secondary" onclick="clearAll()">ล้างข้อมูล</button>
+                <button type="button" class="btn btn-secondary" onclick="unescapeJsonInput('jsonInput')">Unescape</button>
+                <button type="button" class="btn btn-info" onclick="addPanel()">Add Panel</button>
+            </div>
+            
+            <div id="results"></div>
+        </div>
+
+        <!-- Split View -->
+        <div id="splitView" class="split-view">
+            <div class="split-controls">
+                <div class="log-actions">
+                    <button type="button" class="btn btn-info" onclick="addPanel()" id="addPanelBtn">Add Panel</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetToMain()">Reset to Main</button>
+                    <span class="split-mode-label">Mode: <strong id="panelCountDisplay">2 Panels</strong></span>
+                </div>
+            </div>
+            
+            <div id="splitPanels" class="split-panels panels-2">
+                <!-- Panels will be added here dynamically -->
+            </div>
+        </div>
+        </div>
+
+        <!-- Compare JSON App -->
+        <div id="compareApp" class="compare-view">
+            <div class="compare-container">
+                <div class="compare-controls log-actions">
+                    <button type="button" class="btn btn-primary" onclick="executeCompare()">เปรียบเทียบ (Compare)</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetCompare()">กลับไปแก้ไข</button>
+                </div>
+
+                <div id="compareEqualBanner" class="compare-equal-banner" aria-live="polite">
+                    <span>✓</span> ข้อความทั้งสองช่องเหมือนกัน
+                </div>
+                
+                <!-- Input Area -->
+                <div class="compare-row" id="compareInputArea">
+                    <div class="compare-pane" id="comparePaneLeft">
+                        <h3 class="compare-pane-title compare-pane-title-left">Original (ซ้าย)</h3>
+                        <textarea id="compareLeftInput" class="compare-textarea" placeholder="วางข้อความ, JSON หรือ YAML ที่นี่..."></textarea>
+                    </div>
+                    <div class="compare-pane" id="comparePaneRight">
+                        <h3 class="compare-pane-title compare-pane-title-right">Modified (ขวา)</h3>
+                        <textarea id="compareRightInput" class="compare-textarea" placeholder="วางข้อความ, JSON หรือ YAML ที่นี่..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Results Area -->
+                <div class="compare-results" id="compareResultsArea">
+                    <div class="diff-pane" id="compareLeftDiff"></div>
+                    <div class="diff-pane" id="compareRightDiff"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AES-256-GCM encrypt/decrypt (same format as decrypt.sh) -->
+        <div id="cryptoApp">
+            <div class="navbar gcm-subnav" role="tablist" aria-label="โหมด AES-GCM">
+                <div class="nav-item active" id="gcmTabDecrypt" role="tab" aria-selected="true" onclick="setGcmMode('decrypt')">ถอดรหัส (Decrypt)</div>
+                <div class="nav-item" id="gcmTabEncrypt" role="tab" aria-selected="false" onclick="setGcmMode('encrypt')">เข้ารหัส (Encrypt)</div>
+            </div>
+
+            <div class="gcm-info-strip">
+                <strong>สรุปรูปแบบ:</strong>
+                อัลกอริทึมเดียวกับ <code>decrypt.sh</code> — คีย์ Base64 32 ไบต์ · ciphertext = Base64 ของ
+                <code>nonce (12 ไบต์) || ciphertext+tag</code>
+                · ถอดรหัส: วาง Base64 จากแอป · เข้ารหัส: วาง plaintext/JSON แล้วได้ Base64 สำหรับสคริปต์หรือ backend
+            </div>
+
+            <div class="gcm-layout">
+                <aside class="gcm-card">
+                    <h2>คีย์ AES</h2>
+                    <label class="gcm-label" for="gcmKeyInput">Encrypt key (Base64, 32 bytes)</label>
+                    <input type="text" class="gcm-input" id="gcmKeyInput" autocomplete="off" spellcheck="false"
+                        value="b7rerL2RWhviA2IwEG+fVt1JlyR3Sor9kOAVqaJ98EE="
+                        placeholder="Base64 ของคีย์ 32 ไบต์">
+                    <p class="gcm-hint">ต้องถอด Base64 แล้วได้ความยาวพอดี 32 ไบต์</p>
+                </aside>
+
+                <section class="gcm-card">
+                    <div id="gcmPanelDecrypt">
+                        <h2>ถอดรหัส</h2>
+                        <label class="gcm-label" for="gcmCipherInput">Encrypt data (Base64)</label>
+                        <textarea id="gcmCipherInput" class="gcm-textarea gcm-textarea-tall" spellcheck="false" placeholder="วาง ciphertext แบบ Base64 (nonce รวมกับ ciphertext+tag)"></textarea>
+                        <div class="gcm-checkbox-row">
+                            <input type="checkbox" id="gcmPrettyJson" checked>
+                            <label for="gcmPrettyJson" style="margin:0;font-weight:500;">ถ้า plaintext เป็น JSON ให้จัดรูปแบบ (pretty-print)</label>
+                        </div>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-primary" id="gcmBtnDecrypt" onclick="runGcmDecrypt()">ถอดรหัส</button>
+                            <button type="button" class="gcm-btn-secondary" onclick="clearGcmDecryptFields()">ล้างช่อง</button>
+                        </div>
+                        <div class="gcm-output-head" style="margin-top:18px;">
+                            <label class="gcm-label" for="gcmPlainOutput">ผลลัพธ์ (plaintext)</label>
+                        </div>
+                        <textarea id="gcmPlainOutput" class="gcm-textarea gcm-textarea-tall" readonly spellcheck="false" placeholder="ผลถอดรหัสจะแสดงที่นี่"></textarea>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-secondary" onclick="copyGcmPlain()">คัดลอกผลลัพธ์</button>
+                        </div>
+                    </div>
+
+                    <div id="gcmPanelEncrypt" hidden>
+                        <h2>เข้ารหัส</h2>
+                        <label class="gcm-label" for="gcmPlainInput">Plaintext</label>
+                        <textarea id="gcmPlainInput" class="gcm-textarea gcm-textarea-tall" spellcheck="false" placeholder="ข้อความหรือ JSON ที่ต้องการเข้ารหัส"></textarea>
+                        <div class="gcm-checkbox-row">
+                            <input type="checkbox" id="gcmParseJsonEncrypt">
+                            <label for="gcmParseJsonEncrypt" style="margin:0;font-weight:500;">ตีความเป็น JSON แล้ว stringify ก่อนเข้ารหัส</label>
+                        </div>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-primary" id="gcmBtnEncrypt" onclick="runGcmEncrypt()">เข้ารหัส</button>
+                            <button type="button" class="gcm-btn-secondary" onclick="clearGcmEncryptFields()">ล้างช่อง</button>
+                        </div>
+                        <div class="gcm-output-head" style="margin-top:18px;">
+                            <label class="gcm-label" for="gcmCipherOutput">Encrypt data (Base64)</label>
+                        </div>
+                        <textarea id="gcmCipherOutput" class="gcm-textarea gcm-textarea-tall" readonly spellcheck="false" placeholder="ciphertext แบบ Base64 จะแสดงที่นี่"></textarea>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-secondary" onclick="copyGcmCipher()">คัดลอก Base64</button>
+                        </div>
+                    </div>
+
+                    <div id="gcmStatus" class="gcm-status" role="status"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function syntaxHighlightJSON(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-value';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                        const colonIndex = match.lastIndexOf(':');
+                        const keyStr = match.substring(0, colonIndex);
+                        const colonStr = match.substring(colonIndex);
+                        return '<span class="' + cls + '">' + keyStr + '</span>' + colonStr;
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // JSON string escape/unescape (\\ \" \b \f \n \r \t)
+        function escapeJsonChars(text) {
+            return text
+                .replace(/\\/g, '\\\\')
+                .replace(/\u0008/g, '\\b')
+                .replace(/\f/g, '\\f')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t')
+                .replace(/"/g, '\\"');
+        }
+
+        function unescapeJsonChars(text) {
+            return text.replace(/\\(\\|"|b|f|n|r|t)/g, function (_, seq) {
+                switch (seq) {
+                    case '\\': return '\\';
+                    case '"': return '"';
+                    case 'b': return '\u0008';
+                    case 'f': return '\f';
+                    case 'n': return '\n';
+                    case 'r': return '\r';
+                    case 't': return '\t';
+                    default: return '\\' + seq;
+                }
+            });
+        }
+
+        function canParseJsonLine(line) {
+            try {
+                JSON.parse(line);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function autoTransformJsonText(text) {
+            if (!text) return text;
+            const lines = text.split('\n');
+            let changed = 0;
+            const out = lines.map(function (line) {
+                const trimmed = line.trim();
+                if (!trimmed) return line;
+                if (canParseJsonLine(trimmed)) return line;
+                const unescaped = unescapeJsonChars(trimmed);
+                if (unescaped !== trimmed && canParseJsonLine(unescaped)) {
+                    changed++;
+                    const lead = line.slice(0, line.indexOf(trimmed));
+                    return lead + unescaped;
+                }
+                const escaped = escapeJsonChars(trimmed);
+                if (escaped !== trimmed && canParseJsonLine(escaped)) {
+                    changed++;
+                    const lead = line.slice(0, line.indexOf(trimmed));
+                    return lead + escaped;
+                }
+                return line;
+            });
+            return { text: out.join('\n'), changed: changed };
+        }
+
+        function isLogAutoTransformEnabled() {
+            const el = document.getElementById('logAutoTransform');
+            return !el || el.checked;
+        }
+
+        function maybeAutoTransformTextarea(textareaId) {
+            if (!isLogAutoTransformEnabled()) return 0;
+            const el = document.getElementById(textareaId);
+            if (!el) return 0;
+            const result = autoTransformJsonText(el.value);
+            if (result.changed > 0) el.value = result.text;
+            return result.changed;
+        }
+
+        function escapeJsonInput(textareaId) {
+            const el = document.getElementById(textareaId);
+            if (!el) return;
+            el.value = escapeJsonChars(el.value);
+        }
+
+        function unescapeJsonInput(textareaId) {
+            const el = document.getElementById(textareaId);
+            if (!el) return;
+            el.value = unescapeJsonChars(el.value);
+        }
+
+        function autoEscapeUnescapeJsonInput(textareaId) {
+            const el = document.getElementById(textareaId);
+            if (!el) return;
+            const result = autoTransformJsonText(el.value);
+            el.value = result.text;
+        }
+
+        function initLogViewerPasteAutoTransform() {
+            const logViewerApp = document.getElementById('logViewerApp');
+            if (!logViewerApp) return;
+            logViewerApp.addEventListener('paste', function (event) {
+                if (!isLogAutoTransformEnabled()) return;
+                const target = event.target;
+                if (!target || target.tagName !== 'TEXTAREA') return;
+                if (target.id !== 'jsonInput' && !/^panelInput-\d+$/.test(target.id)) return;
+                event.preventDefault();
+                const pasted = (event.clipboardData || window.clipboardData).getData('text');
+                const start = target.selectionStart;
+                const end = target.selectionEnd;
+                const before = target.value.slice(0, start);
+                const after = target.value.slice(end);
+                const merged = before + pasted + after;
+                const result = autoTransformJsonText(merged);
+                target.value = result.text;
+                const cursor = start + pasted.length;
+                target.selectionStart = target.selectionEnd = Math.min(cursor, target.value.length);
+            });
+        }
+
+        function parseJSON() {
+            // maybeAutoTransformTextarea('jsonInput');
+            const inputText = document.getElementById('jsonInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            if (!inputText) {
+                resultsDiv.innerHTML = '<p>กรุณาใส่ข้อมูล JSON</p>';
+                return;
+            }
+
+            // แยกแต่ละบรรทัดและพาร์สเป็น JSON
+            const lines = inputText.split('\n').filter(line => line.trim() !== '');
+            
+            lines.forEach((line, index) => {
+                try {
+                    const jsonObj = JSON.parse(line);
+                    
+                    // สร้าง element สำหรับแสดงผล log entry
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    
+                    // สร้าง header
+                    const logHeader = document.createElement('div');
+                    logHeader.className = 'log-header';
+                    
+                    // ข้อมูลเวลา
+                    const timestamp = document.createElement('div');
+                    timestamp.className = 'timestamp';
+                    timestamp.textContent = jsonObj.timestamp || 'N/A';
+                    
+                    // ระดับความรุนแรง
+                    const severity = document.createElement('div');
+                    severity.className = `severity severity-${jsonObj.severity || 'INFO'}`;
+                    severity.textContent = jsonObj.severity || 'INFO';
+                    
+                    logHeader.appendChild(timestamp);
+                    logHeader.appendChild(severity);
+                    logEntry.appendChild(logHeader);
+                    
+                    // ข้อความ log
+                    if (jsonObj.message) {
+                        const logMessage = document.createElement('div');
+                        logMessage.className = 'log-message';
+                        logMessage.textContent = jsonObj.message;
+                        logEntry.appendChild(logMessage);
+                    }
+                    
+                    // Meta information
+                    const metaInfo = document.createElement('div');
+                    metaInfo.className = 'meta-info';
+                    
+                    // แสดงข้อมูล key ที่สำคัญ
+                    const importantKeys = ['method', 'path', 'statusCode', 'x-ref-id', 'x-requester', 'latency'];
+                    importantKeys.forEach(key => {
+                        if (jsonObj[key]) {
+                            const metaItem = document.createElement('div');
+                            metaItem.className = 'meta-item';
+                            metaItem.textContent = `${key}: ${jsonObj[key]}`;
+                            metaInfo.appendChild(metaItem);
+                        }
+                    });
+                    
+                    logEntry.appendChild(metaInfo);
+                    
+                    // สร้าง tabs สำหรับแสดงข้อมูลต่างๆ
+                    const tabs = document.createElement('div');
+                    tabs.className = 'tabs';
+                    
+                    // สร้างปุ่ม tabs
+                    const tabButtons = document.createElement('div');
+                    tabButtons.className = 'tab-buttons';
+                    
+                    // สร้าง tab สำหรับแสดง JSON ทั้งหมด
+                    const fullJsonTab = document.createElement('button');
+                    fullJsonTab.className = 'tab-btn active';
+                    fullJsonTab.textContent = 'Full JSON';
+                    fullJsonTab.onclick = () => switchTab(index, 'full');
+                    tabButtons.appendChild(fullJsonTab);
+                    
+                    // สร้าง tab สำหรับแสดง header (ถ้ามี)
+                    if (jsonObj.header) {
+                        const headerTab = document.createElement('button');
+                        headerTab.className = 'tab-btn';
+                        headerTab.textContent = 'Headers';
+                        headerTab.onclick = () => switchTab(index, 'header');
+                        tabButtons.appendChild(headerTab);
+                    }
+                    
+                    // สร้าง tab สำหรับแสดง body (ถ้ามี)
+                    if (jsonObj.body) {
+                        const bodyTab = document.createElement('button');
+                        bodyTab.className = 'tab-btn';
+                        bodyTab.textContent = 'Body';
+                        bodyTab.onclick = () => switchTab(index, 'body');
+                        tabButtons.appendChild(bodyTab);
+                    }
+                    
+                    tabs.appendChild(tabButtons);
+                    
+                    // สร้างเนื้อหาของแต่ละ tab
+                    const tabContents = document.createElement('div');
+                    tabContents.className = 'tab-contents';
+                    
+                    // Tab แสดง JSON ทั้งหมด
+                    const fullJsonContent = document.createElement('div');
+                    fullJsonContent.className = 'tab-content active';
+                    fullJsonContent.id = `tab-${index}-full`;
+                    
+                    const fullJsonPre = document.createElement('pre');
+                    
+                    // เรียกฟังก์ชันเพื่อแปลง JSON object ให้เป็น formatted string
+                    fullJsonPre.innerHTML = syntaxHighlightJSON(formatJSONObjectRecursively(jsonObj));
+                    
+                    const copyFullBtn = document.createElement('button');
+                    copyFullBtn.className = 'copy-btn';
+                    copyFullBtn.textContent = 'คัดลอก';
+                    copyFullBtn.onclick = () => copyToClipboard(formatJSONObjectRecursively(jsonObj));
+                    
+                    fullJsonContent.appendChild(copyFullBtn);
+                    fullJsonContent.appendChild(fullJsonPre);
+                    tabContents.appendChild(fullJsonContent);
+                    
+                    // Tab แสดง header (ถ้ามี)
+                    if (jsonObj.header) {
+                        let headerObj;
+                        try {
+                            headerObj = typeof jsonObj.header === 'string' ? JSON.parse(jsonObj.header) : jsonObj.header;
+                        } catch (e) {
+                            headerObj = jsonObj.header;
+                        }
+                        
+                        const headerContent = document.createElement('div');
+                        headerContent.className = 'tab-content';
+                        headerContent.id = `tab-${index}-header`;
+                        
+                        const headerPre = document.createElement('pre');
+                        headerPre.innerHTML = syntaxHighlightJSON(formatJSONObjectRecursively(headerObj));
+                        
+                        const copyHeaderBtn = document.createElement('button');
+                        copyHeaderBtn.className = 'copy-btn';
+                        copyHeaderBtn.textContent = 'คัดลอก';
+                        copyHeaderBtn.onclick = () => copyToClipboard(formatJSONObjectRecursively(headerObj));
+                        
+                        headerContent.appendChild(copyHeaderBtn);
+                        headerContent.appendChild(headerPre);
+                        tabContents.appendChild(headerContent);
+                    }
+                    
+                    // Tab แสดง body (ถ้ามี)
+                    if (jsonObj.body) {
+                        let bodyObj;
+                        try {
+                            bodyObj = typeof jsonObj.body === 'string' ? JSON.parse(jsonObj.body) : jsonObj.body;
+                        } catch (e) {
+                            bodyObj = jsonObj.body;
+                        }
+                        
+                        const bodyContent = document.createElement('div');
+                        bodyContent.className = 'tab-content';
+                        bodyContent.id = `tab-${index}-body`;
+                        
+                        const bodyPre = document.createElement('pre');
+                        bodyPre.innerHTML = syntaxHighlightJSON(formatJSONObjectRecursively(bodyObj));
+                        
+                        const copyBodyBtn = document.createElement('button');
+                        copyBodyBtn.className = 'copy-btn';
+                        copyBodyBtn.textContent = 'คัดลอก';
+                        copyBodyBtn.onclick = () => copyToClipboard(formatJSONObjectRecursively(bodyObj));
+                        
+                        bodyContent.appendChild(copyBodyBtn);
+                        bodyContent.appendChild(bodyPre);
+                        tabContents.appendChild(bodyContent);
+                    }
+                    
+                    tabs.appendChild(tabContents);
+                    logEntry.appendChild(tabs);
+                    
+                    resultsDiv.appendChild(logEntry);
+                } catch (e) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'log-entry';
+                    errorDiv.innerHTML = `<div class="log-header">
+                        <div class="severity severity-ERROR">ERROR</div>
+                    </div>
+                    <div class="log-message">ไม่สามารถพาร์ส JSON ในบรรทัดที่ ${index + 1}</div>
+                    <pre>${e.message}</pre>
+                    <pre>${line}</pre>`;
+                    resultsDiv.appendChild(errorDiv);
+                }
+            });
+        }
+        
+        function switchTab(logIndex, tabType) {
+            // หา log entry ที่เกี่ยวข้องจาก selectedTab ก่อน
+            const selectedTab = document.getElementById(`tab-${logIndex}-${tabType}`);
+            if (!selectedTab) return;
+            
+            const logEntry = selectedTab.closest('.log-entry');
+            if (!logEntry) return;
+            
+            // ซ่อนทุก tab content เฉพาะใน log entry นี้
+            const tabContents = logEntry.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // ยกเลิกการเลือกทุกปุ่ม tab เฉพาะใน log entry นี้
+            const tabButtons = logEntry.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // แสดง tab ที่เลือก
+            selectedTab.classList.add('active');
+            
+            // เลือกปุ่ม tab ที่เกี่ยวข้อง
+            tabButtons.forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(tabType.toLowerCase()) ||
+                    (tabType === 'full' && btn.textContent.toLowerCase().includes('full'))) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                console.info('คัดลอกไปยังคลิปบอร์ดแล้ว');
+            }).catch(err => {
+                console.error('ไม่สามารถคัดลอกข้อความได้:', err);
+            });
+        }
+        
+        function clearAll() {
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // เพิ่มฟังก์ชันสำหรับแปลง JSON ให้เป็น formatted string แบบ recursive
+        function formatJSONObjectRecursively(obj) {
+            // ตรวจสอบก่อนว่าเป็น object หรือ string
+            if (typeof obj === 'string') {
+                try {
+                    const trimmed = obj.trim();
+                    // พยายามแปลง string เป็น JSON object เฉพาะกรณีที่น่าจะเป็น JSON (เริ่มด้วย { หรือ [)
+                    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                        const parsedObj = JSON.parse(obj);
+                        return JSON.stringify(parsedObj, null, 2);
+                    }
+                    return obj;
+                } catch (e) {
+                    // ถ้าแปลงไม่ได้ ส่งคืนค่าเดิม
+                    return obj;
+                }
+            } else if (typeof obj === 'object' && obj !== null) {
+                // ถ้าเป็น object แล้ว
+                const formattedObj = {};
+                
+                for (const key in obj) {
+                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                        const value = obj[key];
+                        
+                        if (typeof value === 'string') {
+                            try {
+                                const trimmed = value.trim();
+                                // พยายามแปลง string value เป็น JSON object เฉพาะกรณีที่น่าจะเป็น JSON
+                                if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                                    formattedObj[key] = JSON.parse(value);
+                                } else {
+                                    formattedObj[key] = value;
+                                }
+                            } catch (e) {
+                                // ถ้าแปลงไม่ได้ ใช้ค่าเดิม
+                                formattedObj[key] = value;
+                            }
+                        } else if (typeof value === 'object' && value !== null) {
+                            // ถ้าเป็น object ให้ทำ recursive
+                            formattedObj[key] = value;
+                        } else {
+                            formattedObj[key] = value;
+                        }
+                    }
+                }
+                
+                return JSON.stringify(formattedObj, null, 2);
+            } else {
+                // กรณีอื่นๆ
+                return JSON.stringify(obj, null, 2);
+            }
+        }
+
+        // Theme toggle functionality
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeToggle = document.querySelector('.theme-toggle');
+            
+            if (body.getAttribute('data-theme') === 'dark') {
+                // Switch to light mode
+                body.removeAttribute('data-theme');
+                themeIcon.textContent = '🌙';
+                themeToggle.innerHTML = '<span id="theme-icon">🌙</span> Dark Mode';
+                localStorage.setItem('theme', 'light');
+            } else {
+                // Switch to dark mode
+                body.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+                themeToggle.innerHTML = '<span id="theme-icon">☀️</span> Light Mode';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Panel system variables
+        let panelCount = 0;
+        let maxPanels = 3;
+        let isSplitMode = false;
+        let panelData = {}; // Store parsed data for each panel
+
+        // Add Panel functionality
+        function addPanel() {
+            if (!isSplitMode) {
+                // First time switching to split mode
+                isSplitMode = true;
+                panelCount = 2;
+                
+                // ถ่ายโอนข้อมูลจากหน้าหลัก
+                const mainInput = document.getElementById('jsonInput').value;
+                
+                // Hide main view, show split view
+                document.getElementById('mainView').style.display = 'none';
+                document.getElementById('splitView').style.display = 'block';
+                
+                // Create initial 2 panels
+                createPanel(0, 'Panel 1');
+                createPanel(1, 'Panel 2');
+                
+                if (mainInput.trim() !== '') {
+                    document.getElementById('panelInput-0').value = mainInput;
+                    parsePanelJSON(0); // ให้แสดงผลอัตโนมัติด้วย
+                }
+                
+                updatePanelLayout();
+                
+            } else {
+                // Add additional panel
+                if (panelCount >= maxPanels) return;
+                
+                panelCount++;
+                createPanel(panelCount - 1, `Panel ${panelCount}`);
+                updatePanelLayout();
+            }
+            
+            updateUI();
+        }
+
+        function createPanel(index, name) {
+            const splitPanels = document.getElementById('splitPanels');
+            
+            const panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.id = `panel-${index}`;
+            
+            panel.innerHTML = `
+                <div class="panel-header">
+                    <input type="text" class="panel-name" value="${name}" 
+                           onchange="updatePanelName(${index}, this.value)"
+                           placeholder="Panel Name">
+                </div>
+                <div class="panel-controls">
+                    <textarea class="panel-textarea" id="panelInput-${index}" 
+                              placeholder="วาง JSON logs ที่นี่..."></textarea>
+                    <div class="log-actions">
+                        <button type="button" class="btn btn-primary" onclick="parsePanelJSON(${index})">แสดงผล</button>
+                        <button type="button" class="btn btn-secondary" onclick="unescapeJsonInput('panelInput-${index}')">Unescape</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearPanel(${index})">ล้าง</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="panelResults-${index}">
+                    <div style="text-align: center; color: var(--text-color); opacity: 0.7; padding: 40px;">
+                        <p>วาง JSON logs ด้านบนแล้วกดแสดงผล</p>
+                    </div>
+                </div>
+            `;
+            
+            splitPanels.appendChild(panel);
+        }
+
+        function updatePanelLayout() {
+            const splitPanels = document.getElementById('splitPanels');
+            splitPanels.className = `split-panels panels-${panelCount}`;
+        }
+
+        function updateUI() {
+            document.getElementById('panelCountDisplay').textContent = `${panelCount} Panels`;
+            
+            const addBtn = document.getElementById('addPanelBtn');
+            if (panelCount >= maxPanels) {
+                addBtn.disabled = true;
+                addBtn.textContent = `Max Panels (${maxPanels})`;
+            } else {
+                addBtn.disabled = false;
+                addBtn.textContent = 'Add Panel';
+            }
+        }
+
+        function updatePanelName(index, name) {
+            // Panel name is automatically updated by the input field
+            console.log(`Panel ${index} renamed to: ${name}`);
+        }
+
+        function parsePanelJSON(panelIndex) {
+            // maybeAutoTransformTextarea(`panelInput-${panelIndex}`);
+            const inputText = document.getElementById(`panelInput-${panelIndex}`).value.trim();
+            const resultsDiv = document.getElementById(`panelResults-${panelIndex}`);
+            
+            if (!inputText) {
+                resultsDiv.innerHTML = '<div style="text-align: center; color: var(--text-color); opacity: 0.7; padding: 40px;"><p>กรุณาใส่ข้อมูล JSON</p></div>';
+                return;
+            }
+
+            // Use the existing parseJSON logic but for specific panel
+            resultsDiv.innerHTML = '';
+            
+            const lines = inputText.split('\n').filter(line => line.trim() !== '');
+            
+            lines.forEach((line, index) => {
+                try {
+                    const jsonObj = JSON.parse(line);
+                    
+                    // Use the existing log entry creation logic
+                    const logEntry = createLogEntry(jsonObj, index);
+                    resultsDiv.appendChild(logEntry);
+                } catch (e) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'log-entry';
+                    errorDiv.innerHTML = `<div class="log-header">
+                        <div class="severity severity-ERROR">ERROR</div>
+                    </div>
+                    <div class="log-message">ไม่สามารถพาร์ส JSON ในบรรทัดที่ ${index + 1}</div>
+                    <pre>${e.message}</pre>
+                    <pre>${line}</pre>`;
+                    resultsDiv.appendChild(errorDiv);
+                }
+            });
+        }
+
+        function clearPanel(panelIndex) {
+            document.getElementById(`panelInput-${panelIndex}`).value = '';
+            document.getElementById(`panelResults-${panelIndex}`).innerHTML = '<div style="text-align: center; color: var(--text-color); opacity: 0.7; padding: 40px;"><p>วาง JSON logs ด้านบนแล้วกดแสดงผล</p></div>';
+        }
+
+        function resetToMain() {
+            // Reset to main view
+            isSplitMode = false;
+            panelCount = 0;
+            panelData = {};
+            
+            // Show main view, hide split view
+            document.getElementById('mainView').style.display = 'block';
+            document.getElementById('splitView').style.display = 'none';
+            
+            // Clear split panels
+            document.getElementById('splitPanels').innerHTML = '';
+            
+            // Reset UI
+            const addBtn = document.getElementById('addPanelBtn');
+            addBtn.disabled = false;
+            addBtn.textContent = 'Add Panel';
+        }
+
+        // Extract log entry creation into reusable function
+        function createLogEntry(jsonObj, index) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            // Create header
+            const logHeader = document.createElement('div');
+            logHeader.className = 'log-header';
+            
+            // Timestamp
+            const timestamp = document.createElement('div');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = jsonObj.timestamp || 'N/A';
+            
+            // Severity
+            const severity = document.createElement('div');
+            severity.className = `severity severity-${jsonObj.severity || 'INFO'}`;
+            severity.textContent = jsonObj.severity || 'INFO';
+            
+            logHeader.appendChild(timestamp);
+            logHeader.appendChild(severity);
+            logEntry.appendChild(logHeader);
+            
+            // Log message
+            if (jsonObj.message) {
+                const logMessage = document.createElement('div');
+                logMessage.className = 'log-message';
+                logMessage.textContent = jsonObj.message;
+                logEntry.appendChild(logMessage);
+            }
+            
+            // Meta information
+            const metaInfo = document.createElement('div');
+            metaInfo.className = 'meta-info';
+            
+            const importantKeys = ['method', 'path', 'statusCode', 'x-ref-id', 'x-requester', 'latency'];
+            importantKeys.forEach(key => {
+                if (jsonObj[key]) {
+                    const metaItem = document.createElement('div');
+                    metaItem.className = 'meta-item';
+                    metaItem.textContent = `${key}: ${jsonObj[key]}`;
+                    metaInfo.appendChild(metaItem);
+                }
+            });
+            
+            logEntry.appendChild(metaInfo);
+            
+            // Create tabs
+            const tabs = document.createElement('div');
+            tabs.className = 'tabs';
+            
+            const tabButtons = document.createElement('div');
+            tabButtons.className = 'tab-buttons';
+            
+            // Full JSON tab
+            const fullJsonTab = document.createElement('button');
+            fullJsonTab.className = 'tab-btn active';
+            fullJsonTab.textContent = 'Full JSON';
+            fullJsonTab.onclick = () => switchTab(index, 'full');
+            tabButtons.appendChild(fullJsonTab);
+            
+            // Header tab
+            if (jsonObj.header) {
+                const headerTab = document.createElement('button');
+                headerTab.className = 'tab-btn';
+                headerTab.textContent = 'Headers';
+                headerTab.onclick = () => switchTab(index, 'header');
+                tabButtons.appendChild(headerTab);
+            }
+            
+            // Body tab
+            if (jsonObj.body) {
+                const bodyTab = document.createElement('button');
+                bodyTab.className = 'tab-btn';
+                bodyTab.textContent = 'Body';
+                bodyTab.onclick = () => switchTab(index, 'body');
+                tabButtons.appendChild(bodyTab);
+            }
+            
+            tabs.appendChild(tabButtons);
+            
+            // Tab contents
+            const tabContents = document.createElement('div');
+            tabContents.className = 'tab-contents';
+            
+            // Full JSON content
+            const fullJsonContent = document.createElement('div');
+            fullJsonContent.className = 'tab-content active';
+            fullJsonContent.id = `tab-${index}-full`;
+            
+            const fullJsonPre = document.createElement('pre');
+            fullJsonPre.innerHTML = syntaxHighlightJSON(formatJSONObjectRecursively(jsonObj));
+            
+            const copyFullBtn = document.createElement('button');
+            copyFullBtn.className = 'copy-btn';
+            copyFullBtn.textContent = 'คัดลอก';
+            copyFullBtn.onclick = () => copyToClipboard(formatJSONObjectRecursively(jsonObj));
+            
+            fullJsonContent.appendChild(copyFullBtn);
+            fullJsonContent.appendChild(fullJsonPre);
+            tabContents.appendChild(fullJsonContent);
+            
+            // Header content
+            if (jsonObj.header) {
+                let headerObj;
+                try {
+                    headerObj = typeof jsonObj.header === 'string' ? JSON.parse(jsonObj.header) : jsonObj.header;
+                } catch (e) {
+                    headerObj = jsonObj.header;
+                }
+                
+                const headerContent = document.createElement('div');
+                headerContent.className = 'tab-content';
+                headerContent.id = `tab-${index}-header`;
+                
+                const headerPre = document.createElement('pre');
+                headerPre.innerHTML = syntaxHighlightJSON(formatJSONObjectRecursively(headerObj));
+                
+                const copyHeaderBtn = document.createElement('button');
+                copyHeaderBtn.className = 'copy-btn';
+                copyHeaderBtn.textContent = 'คัดลอก';
+                copyHeaderBtn.onclick = () => copyToClipboard(formatJSONObjectRecursively(headerObj));
+                
+                headerContent.appendChild(copyHeaderBtn);
+                headerContent.appendChild(headerPre);
+                tabContents.appendChild(headerContent);
+            }
+            
+            // Body content
+            if (jsonObj.body) {
+                let bodyObj;
+                try {
+                    bodyObj = typeof jsonObj.body === 'string' ? JSON.parse(jsonObj.body) : jsonObj.body;
+                } catch (e) {
+                    bodyObj = jsonObj.body;
+                }
+                
+                const bodyContent = document.createElement('div');
+                bodyContent.className = 'tab-content';
+                bodyContent.id = `tab-${index}-body`;
+                
+                const bodyPre = document.createElement('pre');
+                bodyPre.innerHTML = syntaxHighlightJSON(formatJSONObjectRecursively(bodyObj));
+                
+                const copyBodyBtn = document.createElement('button');
+                copyBodyBtn.className = 'copy-btn';
+                copyBodyBtn.textContent = 'คัดลอก';
+                copyBodyBtn.onclick = () => copyToClipboard(formatJSONObjectRecursively(bodyObj));
+                
+                bodyContent.appendChild(copyBodyBtn);
+                bodyContent.appendChild(bodyPre);
+                tabContents.appendChild(bodyContent);
+            }
+            
+            tabs.appendChild(tabContents);
+            logEntry.appendChild(tabs);
+            
+            return logEntry;
+        }
+
+        // Load saved theme on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            initLogViewerPasteAutoTransform();
+            initCompareEqualityListeners();
+            const savedTheme = localStorage.getItem('theme');
+            const themeIcon = document.getElementById('theme-icon');
+            const themeToggle = document.querySelector('.theme-toggle');
+            
+            // Default to dark mode if no preference is saved
+            if (savedTheme === 'light') {
+                document.body.removeAttribute('data-theme');
+                themeIcon.textContent = '🌙';
+                themeToggle.innerHTML = '<span id="theme-icon">🌙</span> Dark Mode';
+            } else {
+                // Ensure dark mode is set (default)
+                document.body.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+                themeToggle.innerHTML = '<span id="theme-icon">☀️</span> Light Mode';
+                // Set default theme in localStorage if not already set
+                if (!savedTheme) {
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+        });
+
+        // --- Navigation Logic ---
+        function switchAppMode(mode) {
+            const logViewerApp = document.getElementById('logViewerApp');
+            const compareApp = document.getElementById('compareApp');
+            const cryptoApp = document.getElementById('cryptoApp');
+            const navLogViewer = document.getElementById('navLogViewer');
+            const navCompare = document.getElementById('navCompare');
+            const navCrypto = document.getElementById('navCrypto');
+            const appTitle = document.getElementById('appTitle');
+            const appSubtitle = document.getElementById('appSubtitle');
+
+            logViewerApp.style.display = 'none';
+            compareApp.style.display = 'none';
+            cryptoApp.style.display = 'none';
+            navLogViewer.classList.remove('active');
+            navCompare.classList.remove('active');
+            navCrypto.classList.remove('active');
+            navLogViewer.setAttribute('aria-selected', 'false');
+            navCompare.setAttribute('aria-selected', 'false');
+            navCrypto.setAttribute('aria-selected', 'false');
+
+            if (mode === 'logViewer') {
+                logViewerApp.style.display = 'block';
+                navLogViewer.classList.add('active');
+                navLogViewer.setAttribute('aria-selected', 'true');
+                appTitle.textContent = 'JSON Log Viewer';
+                appSubtitle.textContent = 'วางข้อมูล log ในรูปแบบ JSON ด้านล่าง (แต่ละบรรทัดควรเป็นหนึ่ง JSON object)';
+            } else if (mode === 'compare') {
+                compareApp.style.display = 'block';
+                navCompare.classList.add('active');
+                navCompare.setAttribute('aria-selected', 'true');
+                appTitle.textContent = 'Compare Text/JSON';
+                appSubtitle.textContent = 'เปรียบเทียบข้อความหรือ JSON สองชุด (รองรับ YAML/ข้อความทั่วไป)';
+            } else if (mode === 'crypto') {
+                cryptoApp.style.display = 'block';
+                navCrypto.classList.add('active');
+                navCrypto.setAttribute('aria-selected', 'true');
+                appTitle.textContent = 'AES-256-GCM';
+                appSubtitle.textContent = 'เข้ารหัส / ถอดรหัสข้อความ — รูปแบบเดียวกับ decrypt.sh (Web Crypto, ทำงานในเบราว์เซอร์)';
+            }
+        }
+
+        const GCM_IV_LENGTH = 12;
+        const GCM_TAG_BITS = 128;
+
+        function setGcmMode(mode) {
+            const decryptTab = document.getElementById('gcmTabDecrypt');
+            const encryptTab = document.getElementById('gcmTabEncrypt');
+            const panelDecrypt = document.getElementById('gcmPanelDecrypt');
+            const panelEncrypt = document.getElementById('gcmPanelEncrypt');
+            const isDecrypt = mode === 'decrypt';
+            decryptTab.classList.toggle('active', isDecrypt);
+            encryptTab.classList.toggle('active', !isDecrypt);
+            decryptTab.setAttribute('aria-selected', isDecrypt);
+            encryptTab.setAttribute('aria-selected', !isDecrypt);
+            panelDecrypt.hidden = !isDecrypt;
+            panelEncrypt.hidden = isDecrypt;
+            hideGcmStatus();
+        }
+
+        function showGcmStatus(message, kind) {
+            const el = document.getElementById('gcmStatus');
+            el.textContent = message;
+            el.className = 'gcm-status visible ' + (kind || '');
+        }
+
+        function hideGcmStatus() {
+            const el = document.getElementById('gcmStatus');
+            el.className = 'gcm-status';
+            el.textContent = '';
+        }
+
+        function gcmDecodeBase64Flexible(value) {
+            let clean = String(value).trim().replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+            const pad = clean.length % 4;
+            if (pad) clean += '='.repeat(4 - pad);
+            const binary = atob(clean);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes;
+        }
+
+        function gcmEncodeBase64(bytes) {
+            let binary = '';
+            const chunk = 8192;
+            for (let i = 0; i < bytes.length; i += chunk) {
+                const sub = bytes.subarray(i, Math.min(i + chunk, bytes.length));
+                binary += String.fromCharCode.apply(null, sub);
+            }
+            return btoa(binary);
+        }
+
+        async function importGcmAesKey(keyBase64, usages) {
+            const keyBytes = gcmDecodeBase64Flexible(keyBase64);
+            if (keyBytes.byteLength !== 32) {
+                throw new Error('คีย์ไม่ถูกต้อง: ต้องถอด Base64 แล้วได้ 32 ไบต์ (ได้ ' + keyBytes.byteLength + ' ไบต์)');
+            }
+            return crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, usages);
+        }
+
+        async function runGcmDecrypt() {
+            hideGcmStatus();
+            const keyB64 = document.getElementById('gcmKeyInput').value;
+            const cipherB64 = document.getElementById('gcmCipherInput').value.trim();
+            const out = document.getElementById('gcmPlainOutput');
+            out.value = '';
+            if (!cipherB64) {
+                showGcmStatus('กรุณาวาง ciphertext (Base64)', 'warn');
+                return;
+            }
+            const btn = document.getElementById('gcmBtnDecrypt');
+            btn.disabled = true;
+            try {
+                const key = await importGcmAesKey(keyB64, ['decrypt']);
+                const encryptedBytes = gcmDecodeBase64Flexible(cipherB64);
+                if (encryptedBytes.byteLength < GCM_IV_LENGTH + 16) {
+                    throw new Error('ข้อมูลสั้นเกินไป (ต้องมีอย่างน้อย nonce + tag)');
+                }
+                const nonce = encryptedBytes.slice(0, GCM_IV_LENGTH);
+                const ciphertext = encryptedBytes.slice(GCM_IV_LENGTH);
+                const plainBuffer = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: nonce, tagLength: GCM_TAG_BITS },
+                    key,
+                    ciphertext
+                );
+                let text = new TextDecoder().decode(plainBuffer);
+                if (document.getElementById('gcmPrettyJson').checked) {
+                    try {
+                        const obj = JSON.parse(text);
+                        text = JSON.stringify(obj, null, 2);
+                    } catch (_) {}
+                }
+                out.value = text;
+                showGcmStatus('ถอดรหัสสำเร็จ', 'ok');
+            } catch (e) {
+                showGcmStatus(e.message || String(e), 'err');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function runGcmEncrypt() {
+            hideGcmStatus();
+            const keyB64 = document.getElementById('gcmKeyInput').value;
+            let raw = document.getElementById('gcmPlainInput').value;
+            const out = document.getElementById('gcmCipherOutput');
+            out.value = '';
+            if (document.getElementById('gcmParseJsonEncrypt').checked) {
+                try {
+                    raw = JSON.stringify(JSON.parse(raw));
+                } catch (e) {
+                    showGcmStatus('ไม่ใช่ JSON ที่ถูกต้อง: ' + (e.message || e), 'err');
+                    return;
+                }
+            }
+            if (!raw.length) {
+                showGcmStatus('กรุณากรอก plaintext', 'warn');
+                return;
+            }
+            const btn = document.getElementById('gcmBtnEncrypt');
+            btn.disabled = true;
+            try {
+                const key = await importGcmAesKey(keyB64, ['encrypt']);
+                const iv = new Uint8Array(GCM_IV_LENGTH);
+                crypto.getRandomValues(iv);
+                const plainBytes = new TextEncoder().encode(raw);
+                const encrypted = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv, tagLength: GCM_TAG_BITS },
+                    key,
+                    plainBytes
+                );
+                const enc = new Uint8Array(encrypted);
+                const combined = new Uint8Array(iv.length + enc.length);
+                combined.set(iv, 0);
+                combined.set(enc, iv.length);
+                out.value = gcmEncodeBase64(combined);
+                showGcmStatus('เข้ารหัสสำเร็จ (สุ่ม nonce ใหม่ทุกครั้ง)', 'ok');
+            } catch (e) {
+                showGcmStatus(e.message || String(e), 'err');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function clearGcmDecryptFields() {
+            document.getElementById('gcmCipherInput').value = '';
+            document.getElementById('gcmPlainOutput').value = '';
+            hideGcmStatus();
+        }
+
+        function clearGcmEncryptFields() {
+            document.getElementById('gcmPlainInput').value = '';
+            document.getElementById('gcmCipherOutput').value = '';
+            hideGcmStatus();
+        }
+
+        async function copyGcmPlain() {
+            const t = document.getElementById('gcmPlainOutput').value;
+            if (!t) return;
+            await navigator.clipboard.writeText(t);
+            showGcmStatus('คัดลอก plaintext แล้ว', 'ok');
+        }
+
+        async function copyGcmCipher() {
+            const t = document.getElementById('gcmCipherOutput').value;
+            if (!t) return;
+            await navigator.clipboard.writeText(t);
+            showGcmStatus('คัดลอก Base64 แล้ว', 'ok');
+        }
+
+        // --- Custom LCS Diff Implementation (100% Offline) ---
+        function computeDiff(oldStr, newStr) {
+            const oldLines = oldStr.split('\n');
+            const newLines = newStr.split('\n');
+            
+            const n = oldLines.length;
+            const m = newLines.length;
+            const dp = Array(n + 1).fill(0).map(() => Array(m + 1).fill(0));
+            
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= m; j++) {
+                    if (oldLines[i - 1] === newLines[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+            
+            let i = n;
+            let j = m;
+            const diff = [];
+            
+            while (i > 0 || j > 0) {
+                if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+                    diff.unshift({ type: 'equal', value: oldLines[i - 1] });
+                    i--; j--;
+                } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                    diff.unshift({ type: 'added', value: newLines[j - 1] });
+                    j--;
+                } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+                    diff.unshift({ type: 'removed', value: oldLines[i - 1] });
+                    i--;
+                }
+            }
+            
+            return diff;
+        }
+
+        function textsAreEqualForCompare(leftText, rightText) {
+            return leftText.length > 0 && leftText === rightText;
+        }
+
+        function updateCompareEquality() {
+            const leftEl = document.getElementById('compareLeftInput');
+            const rightEl = document.getElementById('compareRightInput');
+            if (!leftEl || !rightEl) return;
+
+            const leftText = leftEl.value.trim();
+            const rightText = rightEl.value.trim();
+            const equal = textsAreEqualForCompare(leftText, rightText);
+
+            const leftPane = document.getElementById('comparePaneLeft');
+            const rightPane = document.getElementById('comparePaneRight');
+            const banner = document.getElementById('compareEqualBanner');
+            const resultsArea = document.getElementById('compareResultsArea');
+
+            [leftPane, rightPane].forEach(function (pane) {
+                if (pane) pane.classList.toggle('is-equal', equal);
+            });
+            leftEl.classList.toggle('is-equal', equal);
+            rightEl.classList.toggle('is-equal', equal);
+            if (banner) banner.classList.toggle('visible', equal);
+            if (resultsArea) resultsArea.classList.toggle('is-equal', equal);
+        }
+
+        function initCompareEqualityListeners() {
+            const leftEl = document.getElementById('compareLeftInput');
+            const rightEl = document.getElementById('compareRightInput');
+            if (!leftEl || !rightEl) return;
+            ['input', 'change', 'paste'].forEach(function (evt) {
+                leftEl.addEventListener(evt, updateCompareEquality);
+                rightEl.addEventListener(evt, function () {
+                    setTimeout(updateCompareEquality, 0);
+                });
+            });
+            updateCompareEquality();
+        }
+
+        function executeCompare() {
+            const leftText = document.getElementById('compareLeftInput').value.trim();
+            const rightText = document.getElementById('compareRightInput').value.trim();
+            
+            if (!leftText || !rightText) {
+                alert('กรุณาใส่ข้อมูลทั้งสองช่องเพื่อเปรียบเทียบ');
+                return;
+            }
+
+            updateCompareEquality();
+            
+            let leftHTML = '';
+            let rightHTML = '';
+
+            const escapeHTML = (str) =>
+                str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/ /g, '&nbsp;');
+
+            // Tolerant JSON parser: fixes trailing commas and missing commas between fields
+            const tryParse = (str) => {
+                try { return JSON.parse(str); } catch {}
+                const s1 = str.replace(/,(\s*[}\]])/g, '$1');
+                try { return JSON.parse(s1); } catch {}
+                const s2 = s1.replace(/(true|false|null|["0-9\}\]])\s*\n(\s*")/g, '$1,\n$2');
+                try { return JSON.parse(s2); } catch {}
+                return null;
+            };
+
+            // Canonical form for deep-equal comparison (sorts nested keys)
+            const canonicalize = (v) => {
+                if (Array.isArray(v)) return v.map(canonicalize);
+                if (v !== null && typeof v === 'object')
+                    return Object.fromEntries(Object.keys(v).sort().map(k => [k, canonicalize(v[k])]));
+                return v;
+            };
+
+            const leftObj = tryParse(leftText);
+            const rightObj = tryParse(rightText);
+
+            if (leftObj !== null && rightObj !== null &&
+                typeof leftObj === 'object' && !Array.isArray(leftObj) &&
+                typeof rightObj === 'object' && !Array.isArray(rightObj)) {
+
+                // Semantic field-level diff: compare key-by-key regardless of ordering
+                const allKeys = [...new Set([...Object.keys(leftObj), ...Object.keys(rightObj)])].sort();
+
+                leftHTML  += `<div class="diff-line diff-equal">{</div>`;
+                rightHTML += `<div class="diff-line diff-equal">{</div>`;
+
+                allKeys.forEach((key, idx) => {
+                    const comma  = idx < allKeys.length - 1 ? ',' : '';
+                    const inLeft  = Object.prototype.hasOwnProperty.call(leftObj, key);
+                    const inRight = Object.prototype.hasOwnProperty.call(rightObj, key);
+
+                    if (inLeft && inRight) {
+                        const lv    = JSON.stringify(canonicalize(leftObj[key]));
+                        const rv    = JSON.stringify(canonicalize(rightObj[key]));
+                        const lLine = escapeHTML(`  "${key}": ${JSON.stringify(leftObj[key])}${comma}`);
+                        const rLine = escapeHTML(`  "${key}": ${JSON.stringify(rightObj[key])}${comma}`);
+                        if (lv === rv) {
+                            leftHTML  += `<div class="diff-line diff-equal">${lLine}</div>`;
+                            rightHTML += `<div class="diff-line diff-equal">${rLine}</div>`;
+                        } else {
+                            leftHTML  += `<div class="diff-line diff-removed">${lLine}</div>`;
+                            rightHTML += `<div class="diff-line diff-added">${rLine}</div>`;
+                        }
+                    } else if (inLeft) {
+                        leftHTML  += `<div class="diff-line diff-removed">${escapeHTML(`  "${key}": ${JSON.stringify(leftObj[key])}${comma}`)}</div>`;
+                        rightHTML += `<div class="diff-line diff-empty"></div>`;
+                    } else {
+                        leftHTML  += `<div class="diff-line diff-empty"></div>`;
+                        rightHTML += `<div class="diff-line diff-added">${escapeHTML(`  "${key}": ${JSON.stringify(rightObj[key])}${comma}`)}</div>`;
+                    }
+                });
+
+                leftHTML  += `<div class="diff-line diff-equal">}</div>`;
+                rightHTML += `<div class="diff-line diff-equal">}</div>`;
+
+            } else {
+                // Non-JSON fallback: LCS line-based diff
+                const diff = computeDiff(leftText, rightText);
+                diff.forEach(change => {
+                    if (change.type === 'equal') {
+                        leftHTML  += `<div class="diff-line diff-equal">${escapeHTML(change.value) || ''}</div>`;
+                        rightHTML += `<div class="diff-line diff-equal">${escapeHTML(change.value) || ''}</div>`;
+                    } else if (change.type === 'removed') {
+                        leftHTML  += `<div class="diff-line diff-removed">${escapeHTML(change.value) || ''}</div>`;
+                        rightHTML += `<div class="diff-line diff-empty"></div>`;
+                    } else if (change.type === 'added') {
+                        leftHTML  += `<div class="diff-line diff-empty"></div>`;
+                        rightHTML += `<div class="diff-line diff-added">${escapeHTML(change.value) || ''}</div>`;
+                    }
+                });
+            }
+
+            document.getElementById('compareLeftDiff').innerHTML  = leftHTML;
+            document.getElementById('compareRightDiff').innerHTML = rightHTML;
+
+            document.getElementById('compareInputArea').style.display   = 'none';
+            document.getElementById('compareResultsArea').style.display = 'flex';
+            updateCompareEquality();
+        }
+
+        function resetCompare() {
+            document.getElementById('compareInputArea').style.display = 'flex';
+            document.getElementById('compareResultsArea').style.display = 'none';
+            updateCompareEquality();
+        }
+    </script>
+</body>
+</html> 
+
