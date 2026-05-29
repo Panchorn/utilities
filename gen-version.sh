@@ -2,7 +2,7 @@
 
 VERSION=$(git describe --tags --always)
 GIT_HASH=$(git rev-parse --short HEAD)
-BUILD_TIME=$(date "+%Y-%m-%d %H:%M:%S")
+BUILD_TIME=$(TZ=Asia/Bangkok date "+%Y-%m-%d %H:%M:%S ICT")
 
 cat <<EOF > version.js
 const VERSION = "${VERSION}";
