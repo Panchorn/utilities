@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=$(git describe --tags --always)
+VERSION=$(git describe --tags --abbrev=0)
 GIT_HASH=$(git rev-parse --short HEAD)
 BUILD_TIME=$(TZ=Asia/Bangkok date "+%Y-%m-%d %H:%M:%S ICT")
 
