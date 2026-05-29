@@ -590,11 +590,38 @@
             box-shadow: 0 2px 4px var(--shadow-color);
         }
 
+        .diff-pane {
+            counter-reset: diff-line;
+        }
+
         .diff-line {
-            padding: 0 15px;
+            display: flex;
+            align-items: baseline;
+            padding: 0;
             white-space: pre-wrap;
             word-break: break-all;
             min-height: 22px;
+            counter-increment: diff-line;
+        }
+
+        .diff-line::before {
+            content: counter(diff-line);
+            display: inline-block;
+            min-width: 36px;
+            padding: 0 8px 0 0;
+            text-align: right;
+            font-size: 12px;
+            opacity: 0.4;
+            user-select: none;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-color);
+            margin-right: 12px;
+            color: var(--text-color);
+            background: var(--code-bg);
+        }
+
+        .diff-line.diff-empty::before {
+            content: '';
         }
 
         .diff-equal {
@@ -846,9 +873,55 @@
         #cryptoApp .gcm-subnav {
             margin-bottom: 18px;
         }
+
+        .copy-toast {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(12px);
+            background: #1b4332;
+            color: #52c788;
+            border: 1px solid #52c788;
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(82,199,136,0.25);
+        }
+
+        .copy-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* SQL Extract */
+        #sqlExtractApp { display: none; }
+        .sql-meta { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+        .sql-table-name { font-size:15px; font-weight:700; }
+        .sql-count { font-size:13px; opacity:0.65; }
+        .sql-filter { flex:1; min-width:180px; max-width:320px; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background:var(--code-bg); color:var(--text-color); font-size:14px; }
+        .sql-table-wrap { max-height:68vh; overflow-y:auto; border:1px solid var(--border-color); border-radius:8px; }
+        .sql-result-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .sql-result-table th { text-align:left; padding:8px 12px; background:var(--tab-active-bg); border-bottom:2px solid var(--border-color); font-size:13px; position:sticky; top:0; z-index:1; }
+        .sql-result-table td { padding:7px 12px; border-bottom:1px solid var(--border-color); vertical-align:middle; word-break:break-all; }
+        .sql-result-table tr:hover td { background:var(--tab-bg); }
+        .sql-col-no { width:42px; color:var(--text-color); opacity:0.45; font-size:12px; user-select:none; }
+        .sql-col-name { width:220px; font-family:monospace; font-weight:600; color:#4CAF50; }
+        [data-theme="dark"] .sql-col-name { color:#81c784; }
+        .sql-val-null { color:var(--severity-error-color); font-style:italic; font-size:13px; }
+        .sql-val-bool { color:#42a5f5; font-family:monospace; }
+        .sql-val-str { font-family:monospace; font-size:13px; }
+        .sql-copy-mini { font-size:11px; padding:2px 8px; border-radius:4px; background:var(--tab-active-bg); border:1px solid var(--border-color); color:var(--text-color); cursor:pointer; white-space:nowrap; }
+        .sql-copy-mini:hover { background:var(--tab-bg); }
     </style>
 </head>
 <body data-theme="dark">
+    <div id="copyToast" class="copy-toast">✓ คัดลอกแล้ว</div>
     <div class="container">
         <div class="header">
             <div>
@@ -865,6 +938,7 @@
             <div class="nav-item active" id="navLogViewer" role="tab" aria-selected="true" onclick="switchAppMode('logViewer')">📍 JSON Log Viewer</div>
             <div class="nav-item" id="navCompare" role="tab" aria-selected="false" onclick="switchAppMode('compare')">⚖️ Compare Text/JSON</div>
             <div class="nav-item" id="navCrypto" role="tab" aria-selected="false" onclick="switchAppMode('crypto')">🔐 AES-GCM</div>
+            <div class="nav-item" id="navSql" role="tab" aria-selected="false" onclick="switchAppMode('sqlExtract')">🗄️ Extract SQL</div>
         </div>
 
         <!-- Log Viewer App -->
@@ -940,6 +1014,16 @@
                     <div class="diff-pane" id="compareRightDiff"></div>
                 </div>
             </div>
+        </div>
+
+        <!-- SQL Extract -->
+        <div id="sqlExtractApp">
+            <textarea id="sqlInput" style="height:160px;font-family:monospace;font-size:13px;margin-bottom:15px;" placeholder="วาง INSERT INTO ... VALUES (...) SQL ที่นี่..."></textarea>
+            <div class="log-actions">
+                <button type="button" class="btn btn-primary" onclick="parseSqlInsert()">Parse</button>
+                <button type="button" class="btn btn-secondary" onclick="clearSqlExtract()">ล้าง</button>
+            </div>
+            <div id="sqlResults" style="margin-top:16px;"></div>
         </div>
 
         <!-- AES-256-GCM encrypt/decrypt (same format as decrypt.sh) -->
@@ -1380,9 +1464,19 @@
             });
         }
         
+        let _copyToastTimer = null;
+        function showCopyToast(msg) {
+            const toast = document.getElementById('copyToast');
+            if (!toast) return;
+            toast.textContent = msg || '✓ คัดลอกแล้ว';
+            toast.classList.add('show');
+            if (_copyToastTimer) clearTimeout(_copyToastTimer);
+            _copyToastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                console.info('คัดลอกไปยังคลิปบอร์ดแล้ว');
+                showCopyToast();
             }).catch(err => {
                 console.error('ไม่สามารถคัดลอกข้อความได้:', err);
             });
@@ -1538,7 +1632,6 @@
                     </div>
                 </div>
             `;
-
             
             splitPanels.appendChild(panel);
         }
@@ -1816,21 +1909,19 @@
             const logViewerApp = document.getElementById('logViewerApp');
             const compareApp = document.getElementById('compareApp');
             const cryptoApp = document.getElementById('cryptoApp');
+            const sqlExtractApp = document.getElementById('sqlExtractApp');
             const navLogViewer = document.getElementById('navLogViewer');
             const navCompare = document.getElementById('navCompare');
             const navCrypto = document.getElementById('navCrypto');
+            const navSql = document.getElementById('navSql');
             const appTitle = document.getElementById('appTitle');
             const appSubtitle = document.getElementById('appSubtitle');
 
-            logViewerApp.style.display = 'none';
-            compareApp.style.display = 'none';
-            cryptoApp.style.display = 'none';
-            navLogViewer.classList.remove('active');
-            navCompare.classList.remove('active');
-            navCrypto.classList.remove('active');
-            navLogViewer.setAttribute('aria-selected', 'false');
-            navCompare.setAttribute('aria-selected', 'false');
-            navCrypto.setAttribute('aria-selected', 'false');
+            [logViewerApp, compareApp, cryptoApp, sqlExtractApp].forEach(el => el.style.display = 'none');
+            [navLogViewer, navCompare, navCrypto, navSql].forEach(el => {
+                el.classList.remove('active');
+                el.setAttribute('aria-selected', 'false');
+            });
 
             if (mode === 'logViewer') {
                 logViewerApp.style.display = 'block';
@@ -1850,6 +1941,12 @@
                 navCrypto.setAttribute('aria-selected', 'true');
                 appTitle.textContent = 'AES-256-GCM';
                 appSubtitle.textContent = 'เข้ารหัส / ถอดรหัสข้อความ — รูปแบบเดียวกับ decrypt.sh (Web Crypto, ทำงานในเบราว์เซอร์)';
+            } else if (mode === 'sqlExtract') {
+                sqlExtractApp.style.display = 'block';
+                navSql.classList.add('active');
+                navSql.setAttribute('aria-selected', 'true');
+                appTitle.textContent = 'Extract SQL';
+                appSubtitle.textContent = 'แกะ INSERT INTO SQL แสดง column → value ทีละคู่';
             }
         }
 
@@ -2101,9 +2198,9 @@
         }
 
         function executeCompare() {
-            const leftText = document.getElementById('compareLeftInput').value.trim();
-            const rightText = document.getElementById('compareRightInput').value.trim();
-            
+            let leftText = document.getElementById('compareLeftInput').value.trim();
+            let rightText = document.getElementById('compareRightInput').value.trim();
+
             if (!leftText || !rightText) {
                 alert('กรุณาใส่ข้อมูลทั้งสองช่องเพื่อเปรียบเทียบ');
                 return;
@@ -2135,50 +2232,66 @@
                 return v;
             };
 
-            const leftObj = tryParse(leftText);
-            const rightObj = tryParse(rightText);
+            // Remove the first dangling `}` (depth goes negative) caused by outer context
+            const fixDanglingClose = (text) => {
+                let depth = 0, inString = false, escape = false;
+                for (let i = 0; i < text.length; i++) {
+                    const c = text[i];
+                    if (escape) { escape = false; continue; }
+                    if (inString) {
+                        if (c === '\\') escape = true;
+                        else if (c === '"') inString = false;
+                        continue;
+                    }
+                    if (c === '"') { inString = true; continue; }
+                    if (c === '{' || c === '[') { depth++; continue; }
+                    if (c === '}' || c === ']') {
+                        depth--;
+                        if (depth < 0) return text.slice(0, i) + text.slice(i + 1);
+                    }
+                }
+                return text;
+            };
 
-            if (leftObj !== null && rightObj !== null &&
-                typeof leftObj === 'object' && !Array.isArray(leftObj) &&
-                typeof rightObj === 'object' && !Array.isArray(rightObj)) {
+            // Normalize: parse → canonicalize keys → re-stringify with 2-space indent
+            // Returns null if text cannot be parsed as JSON (direct or fragment)
+            const normalizeIfJson = (text) => {
+                let parsed = tryParse(text);
+                if (parsed !== null) return JSON.stringify(canonicalize(parsed), null, 2);
+                parsed = tryParse('{' + text + '}');
+                if (parsed !== null) return JSON.stringify(canonicalize(parsed), null, 2);
+                // Remove dangling outer-context `}` and retry
+                const fixed = fixDanglingClose(text);
+                if (fixed !== text) {
+                    parsed = tryParse('{' + fixed + '}');
+                    if (parsed !== null) return JSON.stringify(canonicalize(parsed), null, 2);
+                }
+                return null;
+            };
 
-                // Semantic field-level diff: compare key-by-key regardless of ordering
-                const allKeys = [...new Set([...Object.keys(leftObj), ...Object.keys(rightObj)])].sort();
+            const leftNorm  = normalizeIfJson(leftText);
+            const rightNorm = normalizeIfJson(rightText);
 
-                leftHTML  += `<div class="diff-line diff-equal">{</div>`;
-                rightHTML += `<div class="diff-line diff-equal">{</div>`;
-
-                allKeys.forEach((key, idx) => {
-                    const comma  = idx < allKeys.length - 1 ? ',' : '';
-                    const inLeft  = Object.prototype.hasOwnProperty.call(leftObj, key);
-                    const inRight = Object.prototype.hasOwnProperty.call(rightObj, key);
-
-                    if (inLeft && inRight) {
-                        const lv    = JSON.stringify(canonicalize(leftObj[key]));
-                        const rv    = JSON.stringify(canonicalize(rightObj[key]));
-                        const lLine = escapeHTML(`  "${key}": ${JSON.stringify(leftObj[key])}${comma}`);
-                        const rLine = escapeHTML(`  "${key}": ${JSON.stringify(rightObj[key])}${comma}`);
-                        if (lv === rv) {
-                            leftHTML  += `<div class="diff-line diff-equal">${lLine}</div>`;
-                            rightHTML += `<div class="diff-line diff-equal">${rLine}</div>`;
-                        } else {
-                            leftHTML  += `<div class="diff-line diff-removed">${lLine}</div>`;
-                            rightHTML += `<div class="diff-line diff-added">${rLine}</div>`;
-                        }
-                    } else if (inLeft) {
-                        leftHTML  += `<div class="diff-line diff-removed">${escapeHTML(`  "${key}": ${JSON.stringify(leftObj[key])}${comma}`)}</div>`;
+            if (leftNorm !== null && rightNorm !== null) {
+                // Both sides are valid JSON → LCS on canonical/normalized text
+                // (handles indent differences and key-order differences correctly)
+                leftText  = leftNorm;
+                rightText = rightNorm;
+                const diff = computeDiff(leftText, rightText);
+                diff.forEach(change => {
+                    if (change.type === 'equal') {
+                        leftHTML  += `<div class="diff-line diff-equal">${escapeHTML(change.value) || ''}</div>`;
+                        rightHTML += `<div class="diff-line diff-equal">${escapeHTML(change.value) || ''}</div>`;
+                    } else if (change.type === 'removed') {
+                        leftHTML  += `<div class="diff-line diff-removed">${escapeHTML(change.value) || ''}</div>`;
                         rightHTML += `<div class="diff-line diff-empty"></div>`;
-                    } else {
+                    } else if (change.type === 'added') {
                         leftHTML  += `<div class="diff-line diff-empty"></div>`;
-                        rightHTML += `<div class="diff-line diff-added">${escapeHTML(`  "${key}": ${JSON.stringify(rightObj[key])}${comma}`)}</div>`;
+                        rightHTML += `<div class="diff-line diff-added">${escapeHTML(change.value) || ''}</div>`;
                     }
                 });
-
-                leftHTML  += `<div class="diff-line diff-equal">}</div>`;
-                rightHTML += `<div class="diff-line diff-equal">}</div>`;
-
             } else {
-                // Non-JSON fallback: LCS line-based diff
+                // Non-JSON fallback: LCS line-based diff on raw text
                 const diff = computeDiff(leftText, rightText);
                 diff.forEach(change => {
                     if (change.type === 'equal') {
@@ -2206,6 +2319,164 @@
             document.getElementById('compareInputArea').style.display = 'flex';
             document.getElementById('compareResultsArea').style.display = 'none';
             updateCompareEquality();
+        }
+
+        // --- SQL Extract ---
+        function escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function parseSqlInsert() {
+            const sql = document.getElementById('sqlInput').value.trim();
+            const out = document.getElementById('sqlResults');
+            out.innerHTML = '';
+            if (!sql) return;
+            try {
+                // table name (handles "quoted" or unquoted)
+                const tblMatch = sql.match(/INSERT\s+INTO\s+(?:"([^"]+)"|`([^`]+)`|(\S+?))\s*\(/i);
+                if (!tblMatch) throw new Error('ไม่พบ INSERT INTO');
+                const tableName = tblMatch[1] || tblMatch[2] || tblMatch[3];
+
+                // column list: first (...) after table name
+                const colOpen = sql.indexOf('(', tblMatch.index + tblMatch[0].length - 1);
+                const colClose = sql.indexOf(')', colOpen);
+                if (colOpen === -1 || colClose === -1) throw new Error('ไม่พบ column list');
+                const colStr = sql.slice(colOpen + 1, colClose);
+                const cols = (colStr.match(/"([^"]+)"/g) || []).map(c => c.replace(/"/g, ''));
+                if (!cols.length) throw new Error('ไม่พบ columns (ต้องใส่ "double quotes")');
+
+                // values tuple
+                const valsContent = extractSqlValuesTuple(sql);
+                if (valsContent === null) throw new Error('ไม่พบ VALUES (...)');
+                const vals = parseSqlValueTokens(valsContent);
+
+                renderSqlTable(tableName, cols, vals, out);
+            } catch (e) {
+                out.innerHTML = `<div class="log-entry" style="color:var(--severity-error-color);">❌ ${escHtml(e.message)}</div>`;
+            }
+        }
+
+        function extractSqlValuesTuple(sql) {
+            const idx = sql.toUpperCase().lastIndexOf('VALUES');
+            if (idx === -1) return null;
+            let i = idx + 6;
+            while (i < sql.length && sql[i] !== '(') i++;
+            if (i >= sql.length) return null;
+            i++;
+            let content = '', depth = 1, inStr = false;
+            while (i < sql.length && depth > 0) {
+                const c = sql[i];
+                if (inStr) {
+                    if (c === "'" && sql[i + 1] === "'") { content += "''"; i += 2; continue; }
+                    if (c === "'") inStr = false;
+                    content += c;
+                } else {
+                    if (c === "'") { inStr = true; content += c; }
+                    else if (c === '(') { depth++; content += c; }
+                    else if (c === ')') { depth--; if (depth > 0) content += c; }
+                    else { content += c; }
+                }
+                i++;
+            }
+            return content;
+        }
+
+        function parseSqlValueTokens(str) {
+            const tokens = [];
+            let i = 0;
+            while (i < str.length) {
+                while (i < str.length && /[\s,]/.test(str[i])) i++;
+                if (i >= str.length) break;
+                if (str[i] === "'") {
+                    let val = '';
+                    i++;
+                    while (i < str.length) {
+                        if (str[i] === "'" && str[i + 1] === "'") { val += "'"; i += 2; }
+                        else if (str[i] === "'") { i++; break; }
+                        else { val += str[i++]; }
+                    }
+                    tokens.push({ type: 'string', val });
+                } else {
+                    let val = '';
+                    while (i < str.length && str[i] !== ',') val += str[i++];
+                    val = val.trim();
+                    const up = val.toUpperCase();
+                    tokens.push({ type: up === 'NULL' ? 'null' : /^(true|false)$/i.test(val) ? 'bool' : 'keyword', val });
+                }
+            }
+            return tokens;
+        }
+
+        function renderSqlTable(tableName, cols, vals, container) {
+            const mismatch = cols.length !== vals.length
+                ? `<span style="color:var(--severity-warn-color);font-size:12px;"> ⚠ cols=${cols.length} vals=${vals.length}</span>` : '';
+            container.innerHTML = `
+                <div class="sql-meta">
+                    <span class="sql-table-name">📋 ${escHtml(tableName)}</span>
+                    <span class="sql-count">${cols.length} columns${mismatch}</span>
+                    <input class="sql-filter" type="text" id="sqlFilter" placeholder="ค้นหา column / value..." oninput="filterSqlRows(this.value)">
+                </div>
+                <div class="sql-table-wrap">
+                    <table class="sql-result-table">
+                        <thead><tr>
+                            <th class="sql-col-no">#</th>
+                            <th>Column</th>
+                            <th>Value</th>
+                            <th style="width:56px;"></th>
+                        </tr></thead>
+                        <tbody id="sqlTbody"></tbody>
+                    </table>
+                </div>`;
+            const tbody = document.getElementById('sqlTbody');
+            const len = Math.max(cols.length, vals.length);
+            for (let i = 0; i < len; i++) {
+                const col = cols[i] || `?col_${i + 1}`;
+                const tok = vals[i] || { type: 'null', val: 'NULL' };
+
+                const tr = document.createElement('tr');
+                tr.dataset.col = col.toLowerCase();
+                tr.dataset.val = tok.val.toLowerCase();
+
+                const tdNo = document.createElement('td');
+                tdNo.className = 'sql-col-no';
+                tdNo.textContent = i + 1;
+
+                const tdCol = document.createElement('td');
+                tdCol.className = 'sql-col-name';
+                tdCol.textContent = col;
+
+                const tdVal = document.createElement('td');
+                const valSpan = document.createElement('span');
+                if (tok.type === 'null') { valSpan.className = 'sql-val-null'; valSpan.textContent = 'NULL'; }
+                else if (tok.type === 'bool') { valSpan.className = 'sql-val-bool'; valSpan.textContent = tok.val; }
+                else { valSpan.className = 'sql-val-str'; valSpan.textContent = tok.val; }
+                tdVal.appendChild(valSpan);
+
+                const tdCopy = document.createElement('td');
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'sql-copy-mini';
+                copyBtn.textContent = 'copy';
+                copyBtn.onclick = () => copyToClipboard(tok.val);
+                tdCopy.appendChild(copyBtn);
+
+                tr.appendChild(tdNo);
+                tr.appendChild(tdCol);
+                tr.appendChild(tdVal);
+                tr.appendChild(tdCopy);
+                tbody.appendChild(tr);
+            }
+        }
+
+        function filterSqlRows(q) {
+            const query = q.toLowerCase().trim();
+            document.querySelectorAll('#sqlTbody tr').forEach(tr => {
+                tr.style.display = (!query || tr.dataset.col.includes(query) || tr.dataset.val.includes(query)) ? '' : 'none';
+            });
+        }
+
+        function clearSqlExtract() {
+            document.getElementById('sqlInput').value = '';
+            document.getElementById('sqlResults').innerHTML = '';
         }
     </script>
 </body>
