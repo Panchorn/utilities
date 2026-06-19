@@ -875,6 +875,38 @@
             margin-bottom: 18px;
         }
 
+        #cryptoApp .gcm-stats {
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 0;
+        }
+
+        #cryptoApp .gcm-stats.visible {
+            display: flex;
+        }
+
+        #cryptoApp .gcm-stat {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--code-bg);
+        }
+
+        #cryptoApp .gcm-stat.ok {
+            color: var(--severity-info-color);
+            border-color: var(--severity-info-color);
+            background: var(--severity-info-bg);
+        }
+
+        #cryptoApp .gcm-stat.err {
+            color: var(--severity-error-color);
+            border-color: var(--severity-error-color);
+            background: var(--severity-error-bg);
+        }
+
         .copy-toast {
             position: fixed;
             bottom: 32px;
@@ -1038,7 +1070,8 @@
                 <strong>สรุปรูปแบบ:</strong>
                 อัลกอริทึมเดียวกับ <code>decrypt.sh</code> — คีย์ Base64 32 ไบต์ · ciphertext = Base64 ของ
                 <code>nonce (12 ไบต์) || ciphertext+tag</code>
-                · ถอดรหัส: วาง Base64 จากแอป · เข้ารหัส: วาง plaintext/JSON แล้วได้ Base64 สำหรับสคริปต์หรือ backend
+                · ถอดรหัส: วาง Base64 จากแอป (หนึ่งเรคคอร์ดต่อบรรทัด · รองรับ <code>uuid|base64</code>)
+                · เข้ารหัส: วาง plaintext/JSON แล้วได้ Base64 สำหรับสคริปต์หรือ backend
             </div>
 
             <div class="gcm-layout">
@@ -1055,7 +1088,8 @@
                     <div id="gcmPanelDecrypt">
                         <h2>ถอดรหัส</h2>
                         <label class="gcm-label" for="gcmCipherInput">Encrypt data (Base64)</label>
-                        <textarea id="gcmCipherInput" class="gcm-textarea gcm-textarea-tall" spellcheck="false" placeholder="วาง ciphertext แบบ Base64 (nonce รวมกับ ciphertext+tag)"></textarea>
+                        <textarea id="gcmCipherInput" class="gcm-textarea gcm-textarea-tall" spellcheck="false" placeholder="uuid|encrypted_base64&#10;หรือ encrypted_base64 อย่างละ 1 บรรทัด"></textarea>
+                        <p class="gcm-hint">หลายบรรทัด = ถอดรหัสทีละเรคคอร์ด · รูปแบบ <code>uuid|base64</code> หรือ base64 ล้วน</p>
                         <div class="gcm-checkbox-row">
                             <input type="checkbox" id="gcmPrettyJson" checked>
                             <label for="gcmPrettyJson" style="margin:0;font-weight:500;">ถ้า plaintext เป็น JSON ให้จัดรูปแบบ (pretty-print)</label>
@@ -1066,6 +1100,11 @@
                         </div>
                         <div class="gcm-output-head" style="margin-top:18px;">
                             <label class="gcm-label" for="gcmPlainOutput">ผลลัพธ์ (plaintext)</label>
+                        </div>
+                        <div id="gcmDecryptStats" class="gcm-stats" aria-live="polite">
+                            <span class="gcm-stat" id="gcmStatTotal">Total: 0</span>
+                            <span class="gcm-stat ok" id="gcmStatOk">OK: 0</span>
+                            <span class="gcm-stat err" id="gcmStatErr">Error: 0</span>
                         </div>
                         <textarea id="gcmPlainOutput" class="gcm-textarea gcm-textarea-tall" readonly spellcheck="false" placeholder="ผลถอดรหัสจะแสดงที่นี่"></textarea>
                         <div class="gcm-actions">
@@ -2009,40 +2048,136 @@
             return crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, usages);
         }
 
+        function parseGcmDecryptLine(line) {
+            const trimmed = line.trim();
+            const sep = trimmed.indexOf('|');
+            if (sep >= 0) {
+                return {
+                    sourceId: trimmed.slice(0, sep).trim(),
+                    encrypted: trimmed.slice(sep + 1).trim()
+                };
+            }
+            return { sourceId: '', encrypted: trimmed };
+        }
+
+        function parseGcmDecryptInput(input) {
+            return input.split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean);
+        }
+
+        async function decryptGcmBlob(encryptedB64, key) {
+            const encryptedBytes = gcmDecodeBase64Flexible(encryptedB64);
+            if (encryptedBytes.byteLength < GCM_IV_LENGTH + 16) {
+                throw new Error('ข้อมูลสั้นเกินไป (ต้องมีอย่างน้อย nonce + tag)');
+            }
+            const nonce = encryptedBytes.slice(0, GCM_IV_LENGTH);
+            const ciphertext = encryptedBytes.slice(GCM_IV_LENGTH);
+            const plainBuffer = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: nonce, tagLength: GCM_TAG_BITS },
+                key,
+                ciphertext
+            );
+            return new TextDecoder().decode(plainBuffer);
+        }
+
+        function formatGcmPlaintext(text, prettyJson) {
+            if (!prettyJson) return text;
+            try {
+                return JSON.stringify(JSON.parse(text), null, 2);
+            } catch (_) {
+                return text;
+            }
+        }
+
+        function formatGcmDecryptResult(result) {
+            if (!result.ok) return '';
+            if (result.sourceId && !result.text.includes('\n')) {
+                return result.sourceId + '|' + result.text;
+            }
+            if (result.sourceId) {
+                return result.sourceId + '\n' + result.text;
+            }
+            return result.text;
+        }
+
+        function updateGcmDecryptStats(total, ok, err) {
+            const wrap = document.getElementById('gcmDecryptStats');
+            const show = total > 1;
+            wrap.classList.toggle('visible', show);
+            if (!show) return;
+            document.getElementById('gcmStatTotal').textContent = 'Total: ' + total;
+            document.getElementById('gcmStatOk').textContent = 'OK: ' + ok;
+            document.getElementById('gcmStatErr').textContent = 'Error: ' + err;
+        }
+
         async function runGcmDecrypt() {
             hideGcmStatus();
             const keyB64 = document.getElementById('gcmKeyInput').value;
-            const cipherB64 = document.getElementById('gcmCipherInput').value.trim();
+            const input = document.getElementById('gcmCipherInput').value;
             const out = document.getElementById('gcmPlainOutput');
+            const prettyJson = document.getElementById('gcmPrettyJson').checked;
             out.value = '';
-            if (!cipherB64) {
-                showGcmStatus('กรุณาวาง ciphertext (Base64)', 'warn');
+            updateGcmDecryptStats(0, 0, 0);
+
+            const lines = parseGcmDecryptInput(input);
+            if (!lines.length) {
+                showGcmStatus('กรุณาวาง ciphertext (Base64) อย่างน้อย 1 บรรทัด', 'warn');
                 return;
             }
+
             const btn = document.getElementById('gcmBtnDecrypt');
             btn.disabled = true;
             try {
                 const key = await importGcmAesKey(keyB64, ['decrypt']);
-                const encryptedBytes = gcmDecodeBase64Flexible(cipherB64);
-                if (encryptedBytes.byteLength < GCM_IV_LENGTH + 16) {
-                    throw new Error('ข้อมูลสั้นเกินไป (ต้องมีอย่างน้อย nonce + tag)');
-                }
-                const nonce = encryptedBytes.slice(0, GCM_IV_LENGTH);
-                const ciphertext = encryptedBytes.slice(GCM_IV_LENGTH);
-                const plainBuffer = await crypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: nonce, tagLength: GCM_TAG_BITS },
-                    key,
-                    ciphertext
-                );
-                let text = new TextDecoder().decode(plainBuffer);
-                if (document.getElementById('gcmPrettyJson').checked) {
+                const results = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                    const parsed = parseGcmDecryptLine(lines[i]);
+                    if (!parsed.encrypted) {
+                        results.push({
+                            lineNo: i + 1,
+                            sourceId: parsed.sourceId,
+                            ok: false,
+                            error: 'ไม่มี ciphertext หลัง |'
+                        });
+                        continue;
+                    }
                     try {
-                        const obj = JSON.parse(text);
-                        text = JSON.stringify(obj, null, 2);
-                    } catch (_) {}
+                        const text = await decryptGcmBlob(parsed.encrypted, key);
+                        results.push({
+                            lineNo: i + 1,
+                            sourceId: parsed.sourceId,
+                            ok: true,
+                            text: formatGcmPlaintext(text, prettyJson)
+                        });
+                    } catch (e) {
+                        results.push({
+                            lineNo: i + 1,
+                            sourceId: parsed.sourceId,
+                            ok: false,
+                            error: e.message || String(e)
+                        });
+                    }
                 }
-                out.value = text;
-                showGcmStatus('ถอดรหัสสำเร็จ', 'ok');
+
+                const okCount = results.filter(function (r) { return r.ok; }).length;
+                const errCount = results.length - okCount;
+                updateGcmDecryptStats(results.length, okCount, errCount);
+
+                out.value = results
+                    .map(formatGcmDecryptResult)
+                    .filter(function (block) { return block.length > 0; })
+                    .join('\n');
+
+                if (errCount === 0) {
+                    showGcmStatus(
+                        results.length === 1 ? 'ถอดรหัสสำเร็จ' : 'ถอดรหัสสำเร็จ ' + okCount + ' / ' + results.length + ' เรคคอร์ด',
+                        'ok'
+                    );
+                } else if (okCount === 0) {
+                    showGcmStatus('ถอดรหัสไม่สำเร็จทุกเรคคอร์ด (' + errCount + ' error)', 'err');
+                } else {
+                    showGcmStatus('ถอดรหัสได้ ' + okCount + ' / ' + results.length + ' เรคคอร์ด (' + errCount + ' error)', 'warn');
+                }
             } catch (e) {
                 showGcmStatus(e.message || String(e), 'err');
             } finally {
@@ -2096,6 +2231,7 @@
         function clearGcmDecryptFields() {
             document.getElementById('gcmCipherInput').value = '';
             document.getElementById('gcmPlainOutput').value = '';
+            updateGcmDecryptStats(0, 0, 0);
             hideGcmStatus();
         }
 
