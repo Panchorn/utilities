@@ -951,6 +951,87 @@
         .sql-val-str { font-family:monospace; font-size:13px; }
         .sql-copy-mini { font-size:11px; padding:2px 8px; border-radius:4px; background:var(--tab-active-bg); border:1px solid var(--border-color); color:var(--text-color); cursor:pointer; white-space:nowrap; }
         .sql-copy-mini:hover { background:var(--tab-bg); }
+
+        /* Log → curl */
+        #logCurlApp { display: none; }
+        .lc-card {
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+        .lc-title { font-size: 16px; font-weight: bold; }
+        .lc-subtitle { color: var(--text-color); opacity: 0.7; font-size: 13px; margin-top: 4px; }
+        .lc-subtitle code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+        .lc-drop {
+            border: 1.5px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 18px 16px;
+            text-align: center;
+            color: var(--text-color);
+            opacity: 0.8;
+            cursor: pointer;
+            transition: border-color .15s, background .15s;
+            margin-top: 14px;
+        }
+        .lc-drop:hover, .lc-drop.drag { border-color: var(--accent); background: var(--tab-bg); opacity: 1; }
+        .lc-drop .big { font-size: 14px; font-weight: 600; }
+        .lc-drop .hint { font-size: 12px; margin-top: 4px; opacity: 0.7; }
+        .lc-drop .fname { font-size: 12px; color: var(--accent); margin-top: 6px; font-variant-numeric: tabular-nums; }
+        .lc-drop input[type="file"] { display: none; }
+        .lc-paste-wrap { margin-top: 12px; }
+        .lc-paste {
+            width: 100%; min-height: 110px; resize: vertical;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--text-color); background: var(--code-bg);
+            border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+        .lc-paste:focus { outline: none; border-color: var(--accent); }
+        .lc-controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+        .lc-field { display: flex; flex-direction: column; gap: 4px; }
+        .lc-field label { font-size: 11px; color: var(--text-color); opacity: 0.6; text-transform: uppercase; letter-spacing: 0.04em; }
+        .lc-field select {
+            font: inherit; font-size: 13px; color: var(--text-color);
+            background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 7px 8px; min-width: 260px;
+        }
+        .lc-field select:focus { outline: none; border-color: var(--accent); }
+        .lc-status { margin-top: 12px; font-size: 13px; color: var(--text-color); opacity: 0.8; min-height: 16px; }
+        .lc-status code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+        .lc-status strong { color: var(--accent); font-weight: 700; }
+        .lc-result { margin-top: 16px; }
+        .lc-res-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .lc-res-title { font-size: 14px; font-weight: bold; }
+        .lc-res-meta { font-size: 12px; color: var(--text-color); opacity: 0.7; font-variant-numeric: tabular-nums; margin-left: 8px; }
+        .lc-btn {
+            font: inherit; font-size: 12px; color: var(--text-color);
+            background: var(--tab-active-bg); border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 5px 12px; cursor: pointer; transition: border-color .15s, background .15s;
+        }
+        .lc-btn:hover { border-color: var(--accent); background: var(--tab-bg); }
+        .lc-pre {
+            margin: 0; padding: 14px 16px; overflow-x: auto;
+            background: var(--code-bg); border: 1px solid var(--border-color); border-radius: 8px;
+            font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--text-color); white-space: pre;
+        }
+        .lc-tok-method { color: var(--accent); font-weight: 700; }
+        .lc-tok-flag   { color: #42a5f5; }
+        [data-theme="dark"] .lc-tok-flag { color: #64b5f6; }
+        .lc-tok-url    { color: var(--text-color); font-weight: 600; }
+        .lc-tok-str    { color: var(--text-color); }
+        .lc-fields { margin-top: 14px; }
+        .lc-fields table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .lc-fields th, .lc-fields td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
+        .lc-fields th { color: var(--text-color); opacity: 0.6; font-weight: 500; width: 160px; text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
+        .lc-fields td { color: var(--text-color); font-variant-numeric: tabular-nums; word-break: break-all; }
+        .lc-fields td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+        .lc-foot { margin-top: 14px; font-size: 12px; color: var(--text-color); opacity: 0.65; line-height: 1.6; }
+        .lc-foot strong { opacity: 0.9; font-weight: 600; }
+        .lc-foot code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
     </style>
 </head>
 <body data-theme="dark">
@@ -972,6 +1053,7 @@
             <div class="nav-item" id="navCompare" role="tab" aria-selected="false" onclick="switchAppMode('compare')">⚖️ Compare Text/JSON</div>
             <div class="nav-item" id="navCrypto" role="tab" aria-selected="false" onclick="switchAppMode('crypto')">🔐 AES-GCM</div>
             <div class="nav-item" id="navSql" role="tab" aria-selected="false" onclick="switchAppMode('sqlExtract')">🗄️ Extract SQL</div>
+            <div class="nav-item" id="navLogCurl" role="tab" aria-selected="false" onclick="switchAppMode('logCurl')">🔁 Log → curl</div>
         </div>
 
         <!-- Log Viewer App -->
@@ -1057,6 +1139,66 @@
                 <button type="button" class="btn btn-secondary" onclick="clearSqlExtract()">ล้าง</button>
             </div>
             <div id="sqlResults" style="margin-top:16px;"></div>
+        </div>
+
+        <!-- Log → curl -->
+        <div id="logCurlApp">
+            <div class="lc-card">
+                <div class="lc-title">Log → curl</div>
+                <div class="lc-subtitle">วาง log บรรทัด <code>[HttpClient] Outgoing request</code> หรือ <code>[Server] Incoming request</code> หรือลากไฟล์ log มาวาง แล้วสร้างคำสั่ง <code>curl</code> ให้</div>
+
+                <div class="lc-drop" id="lcDrop" tabindex="0" role="button" aria-label="ลากไฟล์ log มาวาง หรือคลิกเพื่อเลือกไฟล์">
+                    <div class="big" id="lcDropBig">ลากไฟล์ log มาวาง หรือคลิกเพื่อเลือกไฟล์</div>
+                    <div class="hint">JSON-per-line · เลือกบรรทัดที่มี <code>Outgoing request</code> หรือ <code>Incoming request</code></div>
+                    <div class="fname" id="lcFname"></div>
+                    <input type="file" id="lcFile" accept=".log,.txt,.json,.jsonl">
+                </div>
+
+                <div class="lc-paste-wrap">
+                    <textarea id="lcPaste" class="lc-paste" placeholder='{"timestamp":"...","message":"[HttpClient] Outgoing request","baseUrl":"http://...","endpoint":"/...","method":"POST","header":"{...}","body":"{...}","timeout":"5s"}&#10;— or —&#10;{"timestamp":"...","message":"[Server] Incoming request","method":"POST","path":"/api/v1/repayment","header":{...},"body":{...}}'></textarea>
+                </div>
+
+                <div class="lc-controls">
+                    <div class="lc-field">
+                        <label for="lcLineSel">Matched line</label>
+                        <select id="lcLineSel"><option value="">—</option></select>
+                    </div>
+                </div>
+
+                <div class="lc-status" id="lcStatus">วางหรือลาก log มาวางเพื่อเริ่มต้น</div>
+
+                <div class="lc-result" id="lcResult" hidden>
+                    <div class="lc-res-head">
+                        <div>
+                            <span class="lc-res-title">curl</span>
+                            <span class="lc-res-meta" id="lcResMeta"></span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="lc-btn" id="lcToggleBtn">Show details</button>
+                            <button class="lc-btn" id="lcCopyBtn">Copy</button>
+                        </div>
+                    </div>
+                    <pre id="lcCurlPre" class="lc-pre"></pre>
+
+                    <div class="lc-fields" id="lcFieldsWrap">
+                        <table>
+                            <tbody>
+                                <tr><th>Kind</th><td id="lcFKind"></td></tr>
+                                <tr><th>Method</th><td id="lcFMethod"></td></tr>
+                                <tr><th>URL</th><td id="lcFUrl"></td></tr>
+                                <tr><th>Headers</th><td id="lcFHeaders"></td></tr>
+                                <tr><th>Body</th><td id="lcFBody"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="lc-foot">
+                    <strong>รูปแบบ:</strong> สไตล์ Postman <code>curl --location</code> · <code>--header 'k: v'</code> (ค่าว่าง → <code>'k;'</code>) · <code>--data</code> ถือว่าเป็น POST จึงไม่ต้องใส่ <code>--request</code> · <code>--request</code> สำหรับ method อื่นที่ไม่ใช่ GET<br>
+                    <strong>Outgoing</strong> (<code>[HttpClient] Outgoing request</code>): <code>baseUrl + endpoint</code> · <code>header</code>/<code>body</code> เป็น JSON string<br>
+                    <strong>Incoming</strong> (<code>[Server] Incoming request</code>): <code>path</code> · <code>header</code> เป็น object ที่มีค่า array (เลือกค่าแรก) · <code>body</code> เป็น object
+                </div>
+            </div>
         </div>
 
         <!-- AES-256-GCM encrypt/decrypt (same format as decrypt.sh) -->
@@ -1950,15 +2092,17 @@
             const compareApp = document.getElementById('compareApp');
             const cryptoApp = document.getElementById('cryptoApp');
             const sqlExtractApp = document.getElementById('sqlExtractApp');
+            const logCurlApp = document.getElementById('logCurlApp');
             const navLogViewer = document.getElementById('navLogViewer');
             const navCompare = document.getElementById('navCompare');
             const navCrypto = document.getElementById('navCrypto');
             const navSql = document.getElementById('navSql');
+            const navLogCurl = document.getElementById('navLogCurl');
             const appTitle = document.getElementById('appTitle');
             const appSubtitle = document.getElementById('appSubtitle');
 
-            [logViewerApp, compareApp, cryptoApp, sqlExtractApp].forEach(el => el.style.display = 'none');
-            [navLogViewer, navCompare, navCrypto, navSql].forEach(el => {
+            [logViewerApp, compareApp, cryptoApp, sqlExtractApp, logCurlApp].forEach(el => el.style.display = 'none');
+            [navLogViewer, navCompare, navCrypto, navSql, navLogCurl].forEach(el => {
                 el.classList.remove('active');
                 el.setAttribute('aria-selected', 'false');
             });
@@ -1987,6 +2131,12 @@
                 navSql.setAttribute('aria-selected', 'true');
                 appTitle.textContent = 'Extract SQL';
                 appSubtitle.textContent = 'แกะ INSERT INTO SQL แสดง column → value ทีละคู่';
+            } else if (mode === 'logCurl') {
+                logCurlApp.style.display = 'block';
+                navLogCurl.classList.add('active');
+                navLogCurl.setAttribute('aria-selected', 'true');
+                appTitle.textContent = 'Log → curl';
+                appSubtitle.textContent = 'แปลงบรรทัด log (HttpClient/Server) เป็นคำสั่ง curl';
             }
         }
 
@@ -2615,6 +2765,173 @@
             document.getElementById('sqlInput').value = '';
             document.getElementById('sqlResults').innerHTML = '';
         }
+
+        // --- Log → curl ---
+        (function lcInit() {
+            const dropEl  = document.getElementById('lcDrop');
+            const fileEl  = document.getElementById('lcFile');
+            const fnameEl = document.getElementById('lcFname');
+            const dropBig = document.getElementById('lcDropBig');
+            const pasteEl = document.getElementById('lcPaste');
+            const lineSel = document.getElementById('lcLineSel');
+            const statusEl= document.getElementById('lcStatus');
+            const resultEl= document.getElementById('lcResult');
+            const toggleBtn  = document.getElementById('lcToggleBtn');
+            const fieldsWrap = document.getElementById('lcFieldsWrap');
+            const LC_DEFAULT_HOST = 'http://localhost:8080';
+            let matchedLines = [];
+            let detailsShown = true;
+
+            dropEl.addEventListener('click', () => fileEl.click());
+            dropEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileEl.click(); } });
+            ['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('drag'); }));
+            ['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('drag'); }));
+            dropEl.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+            fileEl.addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
+
+            async function readFile(f) {
+                const text = await f.text();
+                fnameEl.textContent = `${f.name} · ${(f.size / 1024).toFixed(1)} KB`;
+                dropBig.textContent = 'โหลดแล้ว — ลากไฟล์อื่นมาวางเพื่อแทนที่';
+                pasteEl.value = text;
+                reparse();
+            }
+
+            pasteEl.addEventListener('input', reparse);
+            lineSel.addEventListener('change', renderSelected);
+            toggleBtn.addEventListener('click', () => {
+                detailsShown = !detailsShown;
+                fieldsWrap.style.display = detailsShown ? '' : 'none';
+                toggleBtn.textContent = detailsShown ? 'Hide details' : 'Show details';
+            });
+
+            // Normalize both log shapes into { kind, method, url, headers, body, timeout, raw }
+            function tryParseLine(line) {
+                if (!line) return null;
+                let d;
+                try { d = JSON.parse(line); } catch { return null; }
+                const msg = d.message || '';
+                if (msg.includes('Outgoing request')) {
+                    if (!d.baseUrl || !d.endpoint || !d.method) return null;
+                    let headers = {};
+                    if (d.header) { try { headers = JSON.parse(d.header); } catch { headers = { '_raw': d.header }; } }
+                    return { kind: 'outgoing', method: d.method,
+                        url: d.baseUrl.replace(/\/+$/,'') + d.endpoint,
+                        headers, body: d.body || '', timeout: d.timeout || '5s', raw: d };
+                }
+                if (msg.includes('Incoming request')) {
+                    if (!d.method || !d.path) return null;
+                    const OUTSIDE_KEYS = ['x-channel','x-correlation-id','x-ref-id','x-request-date-time','x-requester','x-product','x-service','x-traceparent'];
+                    const headers = {};
+                    const seen = new Set();
+                    for (const k of OUTSIDE_KEYS) { if (k in d) { headers[k] = d[k] ?? ''; seen.add(k.toLowerCase()); } }
+                    if (d.header && typeof d.header === 'object') {
+                        for (const [k, v] of Object.entries(d.header)) {
+                            const lk = k.toLowerCase();
+                            if (seen.has(lk)) continue;
+                            headers[k] = Array.isArray(v) ? v[0] ?? '' : v;
+                            seen.add(lk);
+                        }
+                    }
+                    const body = d.body ? JSON.stringify(d.body) : '';
+                    const incomingUrl = /^https?:\/\//i.test(d.path)
+                        ? d.path
+                        : LC_DEFAULT_HOST.replace(/\/+$/,'') + (d.path.startsWith('/') ? d.path : '/' + d.path);
+                    return { kind: 'incoming', method: d.method, url: incomingUrl, headers, body, timeout: null, raw: d };
+                }
+                return null;
+            }
+
+            function reparse() {
+                const text = pasteEl.value;
+                matchedLines = [];
+                if (text.trim()) {
+                    for (const line of text.split('\n')) {
+                        const parsed = tryParseLine(line);
+                        if (parsed) matchedLines.push({ line, parsed });
+                    }
+                }
+                lineSel.innerHTML = '';
+                if (!matchedLines.length) {
+                    lineSel.innerHTML = "<option value=''>—</option>";
+                    statusEl.innerHTML = text.trim()
+                        ? 'ไม่พบบรรทัดที่ตรง <code>Outgoing request</code> หรือ <code>Incoming request</code> พร้อมฟิลด์ที่จำเป็น'
+                        : 'วางหรือลาก log มาวางเพื่อเริ่มต้น';
+                    resultEl.hidden = true;
+                    return;
+                }
+                matchedLines.forEach((m, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    const ts = m.parsed.raw.timestamp ? m.parsed.raw.timestamp.slice(11, 19) : '';
+                    const tag = m.parsed.kind === 'outgoing' ? 'OUT' : 'IN';
+                    opt.textContent = `#${i+1} · [${tag}] ${ts} · ${m.parsed.method} ${m.parsed.url}`;
+                    lineSel.appendChild(opt);
+                });
+                lineSel.value = 0;
+                statusEl.innerHTML = `พบ <strong>${matchedLines.length}</strong> บรรทัด request`;
+                renderSelected();
+            }
+
+            function renderSelected() {
+                const idx = +lineSel.value;
+                if (Number.isNaN(idx) || !matchedLines[idx]) { resultEl.hidden = true; return; }
+                const d = matchedLines[idx].parsed;
+                const url = d.url;
+                const method = d.method || 'GET';
+                const headers = d.headers || {};
+                const rawBody = d.body || '';
+                const body = (rawBody === '{}' || rawBody === 'null' || rawBody === '') ? '' : rawBody;
+
+                const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const sq  = s => s.replace(/'/g, "'\\''");
+                const needRequest = method !== 'GET' && !(method === 'POST' && body);
+
+                const parts = [];
+                parts.push(needRequest ? `curl --location --request ${method} '${sq(url)}'` : `curl --location '${sq(url)}'`);
+                for (const [k, v] of Object.entries(headers)) {
+                    parts.push(v === '' ? `--header '${k};'` : `--header '${k}: ${sq(v)}'`);
+                }
+                if (body) parts.push(`--data '${sq(body)}'`);
+                const curlStr = parts.join(' \\\n  ');
+
+                let html = `<span class="lc-tok-flag">curl --location</span>`;
+                if (needRequest) html += ` <span class="lc-tok-flag">--request</span> <span class="lc-tok-method">${esc(method)}</span>`;
+                html += ` <span class="lc-tok-url">'${esc(url)}'</span>`;
+                for (const [k, v] of Object.entries(headers)) {
+                    if (v === '') html += ` \\\n  <span class="lc-tok-flag">--header</span> <span class="lc-tok-str">'${esc(k)};'</span>`;
+                    else          html += ` \\\n  <span class="lc-tok-flag">--header</span> <span class="lc-tok-str">'${esc(k)}: ${esc(v)}'</span>`;
+                }
+                if (body) html += ` \\\n  <span class="lc-tok-flag">--data</span> <span class="lc-tok-str">'${esc(body)}'</span>`;
+
+                document.getElementById('lcCurlPre').innerHTML = html;
+                const kindTag = d.kind === 'outgoing' ? 'Outgoing' : 'Incoming';
+                document.getElementById('lcResMeta').textContent =
+                    `${kindTag} · ${method} · ${Object.keys(headers).length} headers · ${body ? body.length + 'B body' : 'no body'}`;
+
+                document.getElementById('lcFKind').textContent = d.kind === 'outgoing' ? 'Outgoing [HttpClient]' : 'Incoming [Server]';
+                document.getElementById('lcFMethod').textContent = method;
+                document.getElementById('lcFUrl').innerHTML = `<code>${esc(url)}</code>`;
+                const hdrHtml = Object.entries(headers).map(([k,v]) => `<code>${esc(k)}: ${esc(v)}</code>`).join('<br>');
+                document.getElementById('lcFHeaders').innerHTML = hdrHtml || '—';
+                document.getElementById('lcFBody').innerHTML = body
+                    ? `<code style="white-space:pre-wrap">${esc(prettyJsonBody(body))}</code>`
+                    : '—';
+
+                resultEl.hidden = false;
+                detailsShown = false;
+                fieldsWrap.style.display = 'none';
+                toggleBtn.textContent = 'Show details';
+
+                const copyBtn = document.getElementById('lcCopyBtn');
+                copyBtn.textContent = 'Copy';
+                copyBtn.onclick = () => copyToClipboard(curlStr);
+            }
+
+            function prettyJsonBody(s) {
+                try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }
+            }
+        })();
     </script>
 
     <script src="version.js"></script>
