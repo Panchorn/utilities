@@ -1017,6 +1017,14 @@
             background: var(--code-bg); border: 1px solid var(--border-color); border-radius: 8px;
             font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
             color: var(--text-color); white-space: pre;
+            outline: none;
+        }
+        .lc-pre[contenteditable="true"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+        .lc-pre[contenteditable="true"]:hover {
+            border-color: var(--accent);
         }
         .lc-tok-method { color: var(--accent); font-weight: 700; }
         .lc-tok-flag   { color: #42a5f5; }
@@ -1178,7 +1186,7 @@
                             <button class="lc-btn" id="lcCopyBtn">Copy</button>
                         </div>
                     </div>
-                    <pre id="lcCurlPre" class="lc-pre"></pre>
+                    <pre id="lcCurlPre" class="lc-pre" contenteditable="true" spellcheck="false"></pre>
 
                     <div class="lc-fields" id="lcFieldsWrap">
                         <table>
@@ -1195,6 +1203,7 @@
 
                 <div class="lc-foot">
                     <strong>รูปแบบ:</strong> สไตล์ Postman <code>curl --location</code> · <code>--header 'k: v'</code> (ค่าว่าง → <code>'k;'</code>) · <code>--data</code> ถือว่าเป็น POST จึงไม่ต้องใส่ <code>--request</code> · <code>--request</code> สำหรับ method อื่นที่ไม่ใช่ GET<br>
+                    <strong>Body:</strong> ถ้าเป็น JSON จะจัดรูปแบบ (pretty-print) ใน <code>--data</code> และเพิ่ม header <code>Content-Type: application/json</code> อัตโนมัติเมื่อมี body และยังไม่มี Content-Type<br>
                     <strong>Outgoing</strong> (<code>[HttpClient] Outgoing request</code>): <code>baseUrl + endpoint</code> · <code>header</code>/<code>body</code> เป็น JSON string<br>
                     <strong>Incoming</strong> (<code>[Server] Incoming request</code>): <code>path</code> · <code>header</code> เป็น object ที่มีค่า array (เลือกค่าแรก) · <code>body</code> เป็น object
                 </div>
@@ -2781,6 +2790,20 @@
             const LC_DEFAULT_HOST = 'http://localhost:8080';
             let matchedLines = [];
             let detailsShown = true;
+            const curlPre = document.getElementById('lcCurlPre');
+            let curlStr = '';       // plain shell-escaped curl text
+            let curlHtml = '';      // syntax-highlighted HTML
+            let curlEdited = false; // user has manually edited the contenteditable
+
+            // Editable curl: swap to plain text on focus for clean editing,
+            // restore highlighting on blur if no edit happened.
+            curlPre.addEventListener('focus', () => {
+                if (!curlEdited) curlPre.textContent = curlStr;
+            });
+            curlPre.addEventListener('input', () => { curlEdited = true; });
+            curlPre.addEventListener('blur', () => {
+                if (!curlEdited && curlHtml) curlPre.innerHTML = curlHtml;
+            });
 
             dropEl.addEventListener('click', () => fileEl.click());
             dropEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileEl.click(); } });
@@ -2883,17 +2906,27 @@
                 const rawBody = d.body || '';
                 const body = (rawBody === '{}' || rawBody === 'null' || rawBody === '') ? '' : rawBody;
 
+                // Default Content-Type: application/json when a body is present and no Content-Type header exists
+                const hasContentType = Object.keys(headers).some(k => k.toLowerCase() === 'content-type');
+                if (body && !hasContentType) {
+                    headers['Content-Type'] = 'application/json';
+                }
+
+                // Format the curl --data payload as pretty-printed JSON when possible.
+                // Unwraps stringified JSON strings (e.g. body = '"{\"k\":\"v\"}"' → pretty JSON object).
+                const curlBody = body ? normalizeJsonBody(body) : '';
+
                 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
                 const sq  = s => s.replace(/'/g, "'\\''");
-                const needRequest = method !== 'GET' && !(method === 'POST' && body);
+                const needRequest = method !== 'GET' && !(method === 'POST' && curlBody);
 
                 const parts = [];
                 parts.push(needRequest ? `curl --location --request ${method} '${sq(url)}'` : `curl --location '${sq(url)}'`);
                 for (const [k, v] of Object.entries(headers)) {
                     parts.push(v === '' ? `--header '${k};'` : `--header '${k}: ${sq(v)}'`);
                 }
-                if (body) parts.push(`--data '${sq(body)}'`);
-                const curlStr = parts.join(' \\\n  ');
+                if (curlBody) parts.push(`--data '${sq(curlBody)}'`);
+                const curlStrValue = parts.join(' \\\n  ');
 
                 let html = `<span class="lc-tok-flag">curl --location</span>`;
                 if (needRequest) html += ` <span class="lc-tok-flag">--request</span> <span class="lc-tok-method">${esc(method)}</span>`;
@@ -2902,20 +2935,23 @@
                     if (v === '') html += ` \\\n  <span class="lc-tok-flag">--header</span> <span class="lc-tok-str">'${esc(k)};'</span>`;
                     else          html += ` \\\n  <span class="lc-tok-flag">--header</span> <span class="lc-tok-str">'${esc(k)}: ${esc(v)}'</span>`;
                 }
-                if (body) html += ` \\\n  <span class="lc-tok-flag">--data</span> <span class="lc-tok-str">'${esc(body)}'</span>`;
+                if (curlBody) html += ` \\\n  <span class="lc-tok-flag">--data</span> <span class="lc-tok-str">'${esc(curlBody)}'</span>`;
 
-                document.getElementById('lcCurlPre').innerHTML = html;
+                curlStr = curlStrValue;
+                curlHtml = html;
+                curlEdited = false;
+                curlPre.innerHTML = html;
                 const kindTag = d.kind === 'outgoing' ? 'Outgoing' : 'Incoming';
                 document.getElementById('lcResMeta').textContent =
-                    `${kindTag} · ${method} · ${Object.keys(headers).length} headers · ${body ? body.length + 'B body' : 'no body'}`;
+                    `${kindTag} · ${method} · ${Object.keys(headers).length} headers · ${curlBody ? curlBody.length + 'B body' : 'no body'}`;
 
                 document.getElementById('lcFKind').textContent = d.kind === 'outgoing' ? 'Outgoing [HttpClient]' : 'Incoming [Server]';
                 document.getElementById('lcFMethod').textContent = method;
                 document.getElementById('lcFUrl').innerHTML = `<code>${esc(url)}</code>`;
                 const hdrHtml = Object.entries(headers).map(([k,v]) => `<code>${esc(k)}: ${esc(v)}</code>`).join('<br>');
                 document.getElementById('lcFHeaders').innerHTML = hdrHtml || '—';
-                document.getElementById('lcFBody').innerHTML = body
-                    ? `<code style="white-space:pre-wrap">${esc(prettyJsonBody(body))}</code>`
+                document.getElementById('lcFBody').innerHTML = curlBody
+                    ? `<code style="white-space:pre-wrap">${esc(prettyJsonBody(curlBody))}</code>`
                     : '—';
 
                 resultEl.hidden = false;
@@ -2925,11 +2961,29 @@
 
                 const copyBtn = document.getElementById('lcCopyBtn');
                 copyBtn.textContent = 'Copy';
-                copyBtn.onclick = () => copyToClipboard(curlStr);
+                copyBtn.onclick = () => copyToClipboard(curlPre.innerText);
             }
 
             function prettyJsonBody(s) {
                 try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }
+            }
+
+            // Unwrap stringified JSON strings then pretty-print.
+            // Handles body = '"{\"k\":\"v\"}"' (a JSON string literal whose content is itself JSON)
+            // by repeatedly parsing while the result is a string, then stringifying the final
+            // object/array with 2-space indent. Returns the original input if it isn't JSON.
+            function normalizeJsonBody(s) {
+                let cur = s;
+                for (let i = 0; i < 4; i++) {           // guard against pathological loops
+                    let parsed;
+                    try { parsed = JSON.parse(cur); } catch { return s; }
+                    if (typeof parsed === 'string') {
+                        cur = parsed;                     // unwrap one string layer
+                        continue;
+                    }
+                    return JSON.stringify(parsed, null, 2);
+                }
+                try { return JSON.stringify(JSON.parse(cur), null, 2); } catch { return s; }
             }
         })();
     </script>
