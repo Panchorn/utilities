@@ -1215,6 +1215,8 @@
             <div class="navbar gcm-subnav" role="tablist" aria-label="โหมด AES-GCM">
                 <div class="nav-item active" id="gcmTabDecrypt" role="tab" aria-selected="true" onclick="setGcmMode('decrypt')">ถอดรหัส (Decrypt)</div>
                 <div class="nav-item" id="gcmTabEncrypt" role="tab" aria-selected="false" onclick="setGcmMode('encrypt')">เข้ารหัส (Encrypt)</div>
+                <div class="nav-item" id="gcmTabLendingDecrypt" role="tab" aria-selected="false" onclick="setGcmLendingMode('lending-decrypt')">ถอดรหัส (Decrypt Lending)</div>
+                <div class="nav-item" id="gcmTabLendingEncrypt" role="tab" aria-selected="false" onclick="setGcmLendingMode('lending-encrypt')">เข้ารหัส (Encrypt Lending)</div>
             </div>
 
             <div class="gcm-info-strip">
@@ -1281,6 +1283,54 @@
                         <textarea id="gcmCipherOutput" class="gcm-textarea gcm-textarea-tall" readonly spellcheck="false" placeholder="ciphertext แบบ Base64 จะแสดงที่นี่"></textarea>
                         <div class="gcm-actions">
                             <button type="button" class="gcm-btn-secondary" onclick="copyGcmCipher()">คัดลอก Base64</button>
+                        </div>
+                    </div>
+
+                    <div id="gcmPanelLendingDecrypt" hidden>
+                        <h2>ถอดรหัส (Lending)</h2>
+                        <label class="gcm-label" for="gcmLendingCipherInput">Encrypt data (Base64) · <code>ciphertext.nonce</code></label>
+                        <textarea id="gcmLendingCipherInput" class="gcm-textarea gcm-textarea-tall" spellcheck="false" placeholder="uuid|encrypted_base64.nonce12chars&#10;หรือ encrypted_base64.nonce12chars อย่างละ 1 บรรทัด"></textarea>
+                        <p class="gcm-hint">nonce = 12 ตัวอักษร (ASCII) ต่อท้ายจุด · หลายบรรทัด = ถอดทีละเรคคอร์ด · รูปแบบ <code>uuid|...</code> หรือล้วน</p>
+                        <div class="gcm-checkbox-row">
+                            <input type="checkbox" id="gcmLendingPrettyJson" checked>
+                            <label for="gcmLendingPrettyJson" style="margin:0;font-weight:500;">ถ้า plaintext เป็น JSON ให้จัดรูปแบบ (pretty-print)</label>
+                        </div>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-primary" id="gcmBtnLendingDecrypt" onclick="runGcmLendingDecrypt()">ถอดรหัส</button>
+                            <button type="button" class="gcm-btn-secondary" onclick="clearGcmLendingDecryptFields()">ล้างช่อง</button>
+                        </div>
+                        <div class="gcm-output-head" style="margin-top:18px;">
+                            <label class="gcm-label" for="gcmLendingPlainOutput">ผลลัพธ์ (plaintext)</label>
+                        </div>
+                        <div id="gcmLendingDecryptStats" class="gcm-stats" aria-live="polite">
+                            <span class="gcm-stat" id="gcmStatLendingTotal">Total: 0</span>
+                            <span class="gcm-stat ok" id="gcmStatLendingOk">OK: 0</span>
+                            <span class="gcm-stat err" id="gcmStatLendingErr">Error: 0</span>
+                        </div>
+                        <textarea id="gcmLendingPlainOutput" class="gcm-textarea gcm-textarea-tall" readonly spellcheck="false" placeholder="ผลถอดรหัสจะแสดงที่นี่"></textarea>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-secondary" onclick="copyGcmLendingPlain()">คัดลอกผลลัพธ์</button>
+                        </div>
+                    </div>
+
+                    <div id="gcmPanelLendingEncrypt" hidden>
+                        <h2>เข้ารหัส (Lending)</h2>
+                        <label class="gcm-label" for="gcmLendingPlainInput">Plaintext</label>
+                        <textarea id="gcmLendingPlainInput" class="gcm-textarea gcm-textarea-tall" spellcheck="false" placeholder="ข้อความหรือ JSON ที่ต้องการเข้ารหัส (nonce จะถูกสุ่ม 12 ตัวอักษร)"></textarea>
+                        <div class="gcm-checkbox-row">
+                            <input type="checkbox" id="gcmLendingParseJsonEncrypt">
+                            <label for="gcmLendingParseJsonEncrypt" style="margin:0;font-weight:500;">ตีความเป็น JSON แล้ว stringify ก่อนเข้ารหัส</label>
+                        </div>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-primary" id="gcmBtnLendingEncrypt" onclick="runGcmLendingEncrypt()">เข้ารหัส</button>
+                            <button type="button" class="gcm-btn-secondary" onclick="clearGcmLendingEncryptFields()">ล้างช่อง</button>
+                        </div>
+                        <div class="gcm-output-head" style="margin-top:18px;">
+                            <label class="gcm-label" for="gcmLendingCipherOutput">Encrypt data (Base64) · <code>ciphertext.nonce</code></label>
+                        </div>
+                        <textarea id="gcmLendingCipherOutput" class="gcm-textarea gcm-textarea-tall" readonly spellcheck="false" placeholder="ciphertext.nonce จะแสดงที่นี่"></textarea>
+                        <div class="gcm-actions">
+                            <button type="button" class="gcm-btn-secondary" onclick="copyGcmLendingCipher()">คัดลอก Base64</button>
                         </div>
                     </div>
 
@@ -2409,6 +2459,265 @@
 
         async function copyGcmCipher() {
             const t = document.getElementById('gcmCipherOutput').value;
+            if (!t) return;
+            await navigator.clipboard.writeText(t);
+            showGcmStatus('คัดลอก Base64 แล้ว', 'ok');
+        }
+
+        // ============ AES-256-GCM Lending (format: ciphertext.nonce — nonce = 12 ASCII chars) ============
+        function setGcmLendingMode(mode) {
+            const decryptTab = document.getElementById('gcmTabLendingDecrypt');
+            const encryptTab = document.getElementById('gcmTabLendingEncrypt');
+            const panelDecrypt = document.getElementById('gcmPanelLendingDecrypt');
+            const panelEncrypt = document.getElementById('gcmPanelLendingEncrypt');
+            const isDecrypt = mode === 'lending-decrypt';
+            decryptTab.classList.toggle('active', isDecrypt);
+            encryptTab.classList.toggle('active', !isDecrypt);
+            decryptTab.setAttribute('aria-selected', isDecrypt);
+            encryptTab.setAttribute('aria-selected', !isDecrypt);
+            panelDecrypt.hidden = !isDecrypt;
+            panelEncrypt.hidden = isDecrypt;
+            // Mutual exclusion with the original (non-lending) panels: hide them when a lending tab is active
+            const panelDecryptOrig = document.getElementById('gcmPanelDecrypt');
+            const panelEncryptOrig = document.getElementById('gcmPanelEncrypt');
+            const tabDecryptOrig = document.getElementById('gcmTabDecrypt');
+            const tabEncryptOrig = document.getElementById('gcmTabEncrypt');
+            if (panelDecryptOrig) panelDecryptOrig.hidden = true;
+            if (panelEncryptOrig) panelEncryptOrig.hidden = true;
+            if (tabDecryptOrig) {
+                tabDecryptOrig.classList.remove('active');
+                tabDecryptOrig.setAttribute('aria-selected', 'false');
+            }
+            if (tabEncryptOrig) {
+                tabEncryptOrig.classList.remove('active');
+                tabEncryptOrig.setAttribute('aria-selected', 'false');
+            }
+            hideGcmStatus();
+        }
+
+        // When a *non-lending* tab is clicked, also hide the lending panels (both directions of the switch)
+        document.addEventListener('click', function (e) {
+            const tab = e.target.closest && e.target.closest('#gcmTabDecrypt, #gcmTabEncrypt');
+            if (!tab) return;
+            const lendingDt = document.getElementById('gcmTabLendingDecrypt');
+            const lendingEt = document.getElementById('gcmTabLendingEncrypt');
+            const pDt = document.getElementById('gcmPanelLendingDecrypt');
+            const pEt = document.getElementById('gcmPanelLendingEncrypt');
+            if (lendingDt) {
+                lendingDt.classList.remove('active');
+                lendingDt.setAttribute('aria-selected', 'false');
+            }
+            if (lendingEt) {
+                lendingEt.classList.remove('active');
+                lendingEt.setAttribute('aria-selected', 'false');
+            }
+            if (pDt) pDt.hidden = true;
+            if (pEt) pEt.hidden = true;
+        });
+
+        function randomLendingNonce() {
+            // 12 ASCII characters (matching the encryption.py example nonce like "82bmfxfbz0tu")
+            const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let s = '';
+            for (let i = 0; i < 12; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+            return s;
+        }
+
+        async function decryptGcmLendingBlob(encryptedB64, key, nonceStr) {
+            const encryptedBytes = gcmDecodeBase64Flexible(encryptedB64);
+            if (encryptedBytes.byteLength < 16) {
+                throw new Error('ข้อมูลสั้นเกินไป (ต้องมีอย่างน้อย ciphertext + tag)');
+            }
+            // WebCrypto AES-GCM expects data = ciphertext+tag appended (tagLength tells it where the tag is)
+            const plainBuffer = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: new TextEncoder().encode(nonceStr), tagLength: GCM_TAG_BITS },
+                key,
+                encryptedBytes
+            );
+            return new TextDecoder().decode(plainBuffer);
+        }
+
+        function parseGcmLendingLine(line) {
+            const trimmed = line.trim();
+            const sep = trimmed.indexOf('|');
+            if (sep >= 0) {
+                return {
+                    sourceId: trimmed.slice(0, sep).trim(),
+                    encrypted: trimmed.slice(sep + 1).trim()
+                };
+            }
+            return { sourceId: '', encrypted: trimmed };
+        }
+
+        // Extract nonce from "ciphertext.nonce": nonce must be exactly 12 ASCII chars.
+        // ciphertext may be url-safe base64 (so split from the last '.' only).
+        function splitGcmLendingCipher(line) {
+            const idx = line.lastIndexOf('.');
+            if (idx <= 0) {
+                throw new Error('รูปแบบไม่ถูกต้อง: ต้องเป็น "ciphertext.nonce" (ไม่พบจุด)');
+            }
+            const b64part = line.slice(0, idx).trim();
+            const nonceStr = line.slice(idx + 1).trim();
+            if (!/^[A-Za-z0-9+/=]+$/.test(b64part)) {
+                throw new Error('ciphertext ต้องเป็น Base64 เท่านั้น');
+            }
+            return { b64: b64part, nonce: nonceStr };
+        }
+
+        function runGcmLendingDecrypt() {
+            hideGcmStatus();
+            const keyB64 = document.getElementById('gcmKeyInput').value;
+            const input = document.getElementById('gcmLendingCipherInput').value;
+            const out = document.getElementById('gcmLendingPlainOutput');
+            const prettyJson = document.getElementById('gcmLendingPrettyJson').checked;
+            out.value = '';
+            updateGcmLendingDecryptStats(0, 0, 0);
+
+            const lines = parseGcmDecryptInput(input);
+            if (!lines.length) {
+                showGcmStatus('กรุณาวาง ciphertext (Base64) อย่างน้อย 1 บรรทัด', 'warn');
+                return;
+            }
+
+            const btn = document.getElementById('gcmBtnLendingDecrypt');
+            btn.disabled = true;
+            (async function () {
+                try {
+                    const key = await importGcmAesKey(keyB64, ['decrypt']);
+                    const results = [];
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const parsed = parseGcmLendingLine(lines[i]);
+                        if (!parsed.encrypted) {
+                            results.push({
+                                lineNo: i + 1,
+                                sourceId: parsed.sourceId,
+                                ok: false,
+                                error: 'ไม่มี ciphertext หลัง |'
+                            });
+                            continue;
+                        }
+                        try {
+                            const splitted = splitGcmLendingCipher(parsed.encrypted);
+                            if (new TextEncoder().encode(splitted.nonce).length !== GCM_IV_LENGTH) {
+                                throw new Error('nonce ต้องยาว 12 ตัวอักษรพอดี (ได้ ' + new TextEncoder().encode(splitted.nonce).length + ')');
+                            }
+                            const text = await decryptGcmLendingBlob(splitted.b64, key, splitted.nonce);
+                            results.push({
+                                lineNo: i + 1,
+                                sourceId: parsed.sourceId,
+                                ok: true,
+                                text: formatGcmPlaintext(text, prettyJson)
+                            });
+                        } catch (e) {
+                            results.push({
+                                lineNo: i + 1,
+                                sourceId: parsed.sourceId,
+                                ok: false,
+                                error: e.message || String(e)
+                            });
+                        }
+                    }
+
+                    const okCount = results.filter(function (r) { return r.ok; }).length;
+                    const errCount = results.length - okCount;
+                    updateGcmLendingDecryptStats(results.length, okCount, errCount);
+
+                    out.value = results
+                        .map(formatGcmDecryptResult)
+                        .filter(function (block) { return block.length > 0; })
+                        .join('\n');
+
+                    if (errCount === 0) {
+                        showGcmStatus(
+                            results.length === 1 ? 'ถอดรหัสสำเร็จ' : 'ถอดรหัสสำเร็จ ' + okCount + ' / ' + results.length + ' เรคคอร์ด',
+                            'ok'
+                        );
+                    } else if (okCount === 0) {
+                        showGcmStatus('ถอดรหัสไม่สำเร็จทุกเรคคอร์ด (' + errCount + ' error)', 'err');
+                    } else {
+                        showGcmStatus('ถอดรหัสได้ ' + okCount + ' / ' + results.length + ' เรคคอร์ด (' + errCount + ' error)', 'warn');
+                    }
+                } catch (e) {
+                    showGcmStatus(e.message || String(e), 'err');
+                } finally {
+                    btn.disabled = false;
+                }
+            })();
+        }
+
+        function runGcmLendingEncrypt() {
+            hideGcmStatus();
+            const keyB64 = document.getElementById('gcmKeyInput').value;
+            const raw = document.getElementById('gcmLendingPlainInput').value;
+            if (!raw.trim()) {
+                showGcmStatus('กรุณากรอก plaintext', 'warn');
+                return;
+            }
+            const parseJson = document.getElementById('gcmLendingParseJsonEncrypt').checked;
+            let plaintext = raw;
+            if (parseJson) {
+                try {
+                    plaintext = JSON.stringify(JSON.parse(raw));
+                } catch (e) {
+                    showGcmStatus('JSON ไม่ถูกต้อง: ' + (e.message || String(e)), 'err');
+                    return;
+                }
+            }
+            const btn = document.getElementById('gcmBtnLendingEncrypt');
+            btn.disabled = true;
+            (async function () {
+                try {
+                    const key = await importGcmAesKey(keyB64, ['encrypt']);
+                    const nonce = randomLendingNonce();
+                    const plainBytes = new TextEncoder().encode(plaintext);
+                    const encrypted = await crypto.subtle.encrypt(
+                        { name: 'AES-GCM', iv: new TextEncoder().encode(nonce), tagLength: GCM_TAG_BITS },
+                        key,
+                        plainBytes
+                    );
+                    const out = document.getElementById('gcmLendingCipherOutput');
+                    out.value = gcmEncodeBase64(new Uint8Array(encrypted)) + '.' + nonce;
+                    showGcmStatus('เข้ารหัสสำเร็จ (รูปแบบ ciphertext.nonce, nonce: ' + nonce + ')', 'ok');
+                } catch (e) {
+                    showGcmStatus(e.message || String(e), 'err');
+                } finally {
+                    btn.disabled = false;
+                }
+            })();
+        }
+
+        function updateGcmLendingDecryptStats(total, ok, err) {
+            const show = total > 0;
+            document.getElementById('gcmLendingDecryptStats').classList.toggle('visible', show);
+            if (!show) return;
+            document.getElementById('gcmStatLendingTotal').textContent = 'Total: ' + total;
+            document.getElementById('gcmStatLendingOk').textContent = 'OK: ' + ok;
+            document.getElementById('gcmStatLendingErr').textContent = 'Error: ' + err;
+        }
+
+        function clearGcmLendingDecryptFields() {
+            document.getElementById('gcmLendingCipherInput').value = '';
+            document.getElementById('gcmLendingPlainOutput').value = '';
+            updateGcmLendingDecryptStats(0, 0, 0);
+            hideGcmStatus();
+        }
+
+        function clearGcmLendingEncryptFields() {
+            document.getElementById('gcmLendingPlainInput').value = '';
+            document.getElementById('gcmLendingCipherOutput').value = '';
+            hideGcmStatus();
+        }
+
+        async function copyGcmLendingPlain() {
+            const t = document.getElementById('gcmLendingPlainOutput').value;
+            if (!t) return;
+            await navigator.clipboard.writeText(t);
+            showGcmStatus('คัดลอก plaintext แล้ว', 'ok');
+        }
+
+        async function copyGcmLendingCipher() {
+            const t = document.getElementById('gcmLendingCipherOutput').value;
             if (!t) return;
             await navigator.clipboard.writeText(t);
             showGcmStatus('คัดลอก Base64 แล้ว', 'ok');
